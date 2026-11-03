@@ -20,7 +20,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.yourdomain.com"
+        "EXPO_PUBLIC_API_URL": "https://live-app-6ykc.onrender.com"
       }
     },
     "production": {
@@ -28,7 +28,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.yourdomain.com"
+        "EXPO_PUBLIC_API_URL": "https://live-app-6ykc.onrender.com"
       }
     }
   },

@@ -8,3 +8,4 @@ deploy/turnserver.conf
 mobile/android
 mobile/.expo
 mobile/dist
+*.apk

@@ -8,7 +8,6 @@ web-build/
 
 # Native
 *.orig.*
-android/
 ios/
 
 # Metro
