@@ -65,6 +65,16 @@ app.use('/uploads', express.static(uploadRoot, { maxAge: '30d', immutable: true 
 app.use('/fx', express.static(FX_DIR, { maxAge: '365d', immutable: true }));
 app.use('/static', express.static(path.resolve('public'), { maxAge: '30d' }));
 
+app.get('/', (_req, res) => {
+  res.json({
+    status: 'online',
+    app: config.appName,
+    message: 'LiveApp Backend Server is running successfully 🚀',
+    health: '/api/health',
+    time: new Date().toISOString(),
+  });
+});
+
 app.get('/api/health', async (_req, res) => {
   const db = await pool.query('SELECT 1').then(() => true).catch(() => false);
   const rd = (await redis.ping().catch(() => '')) === 'PONG';
