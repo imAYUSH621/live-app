@@ -6,7 +6,13 @@ pg.types.setTypeParser(20, (v) => (v === null ? null : Number(v)));
 // NUMERIC -> number
 pg.types.setTypeParser(1700, (v) => (v === null ? null : Number(v)));
 
-export const pool = new pg.Pool({ connectionString: config.databaseUrl, max: 20 });
+const isRemoteDb = !config.databaseUrl.includes('localhost') && !config.databaseUrl.includes('127.0.0.1');
+
+export const pool = new pg.Pool({
+  connectionString: config.databaseUrl,
+  max: 20,
+  ...(isRemoteDb ? { ssl: { rejectUnauthorized: false } } : {}),
+});
 
 export async function q(text, params = []) {
   const r = await pool.query(text, params);

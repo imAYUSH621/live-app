@@ -1,0 +1,51 @@
+services:
+  # Backend API & Socket.io Web Service
+  - type: web
+    name: liveapp-server
+    runtime: node
+    plan: starter
+    rootDir: server
+    buildCommand: npm install && npm run migrate && npm run seed
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: liveapp-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: liveapp-redis
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: '*'
+      - key: LIVEKIT_URL
+        sync: false
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: ADMIN_EMAIL
+        value: admin@example.com
+      - key: ADMIN_PASSWORD
+        generateValue: true
+
+# Managed Redis for Socket.io & caching
+  - type: redis
+    name: liveapp-redis
+    plan: starter
+    ipAllowList: []
+
+# Managed PostgreSQL Database
+databases:
+  - name: liveapp-db
+    plan: starter
+    databaseName: liveapp
+    user: liveapp

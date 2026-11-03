@@ -3,6 +3,7 @@ import { config } from './config.js';
 
 export const redis = new Redis(config.redisUrl, {
   maxRetriesPerRequest: 20,
+  tls: config.redisUrl.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined,
   retryStrategy(times) {
     return Math.min(times * 100, 2000);
   },
