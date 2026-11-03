@@ -16,7 +16,7 @@ export const config = {
   publicAppUrl: env('PUBLIC_APP_URL', 'http://localhost:5173'),
   corsOrigins: env('CORS_ORIGINS', '*'),
   databaseUrl: env('DATABASE_URL', 'postgres://liveapp:liveapp@localhost:5432/liveapp'),
-  redisUrl: env('REDIS_URL', 'redis://localhost:6379'),
+  redisUrl: env('REDIS_URL', 'memory'),
   jwtSecret: env('JWT_SECRET', 'change-me-in-production'),
   uploadDir: env('UPLOAD_DIR', './uploads'),
   maxUploadMb: Number(env('MAX_UPLOAD_MB', 25)),

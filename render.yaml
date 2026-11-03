@@ -3,7 +3,7 @@ services:
   - type: web
     name: liveapp-server
     runtime: node
-    plan: starter
+    plan: free
     rootDir: server
     buildCommand: npm install && npm run migrate && npm run seed
     startCommand: npm start
@@ -18,34 +18,26 @@ services:
           name: liveapp-db
           property: connectionString
       - key: REDIS_URL
-        fromService:
-          type: redis
-          name: liveapp-redis
-          property: connectionString
+        value: memory
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ORIGINS
         value: '*'
       - key: LIVEKIT_URL
-        sync: false
+        value: wss://liveapp-xlp0dmau.livekit.cloud
+      - key: LIVEKIT_API_URL
+        value: https://liveapp-xlp0dmau.livekit.cloud
       - key: LIVEKIT_API_KEY
-        sync: false
+        value: APIgwq8qttLHjcn
       - key: LIVEKIT_API_SECRET
-        sync: false
+        value: 0ZiP690jLfcJASAeZloUL9Tq4UNg4NhFIHAKAYDofSrA
       - key: ADMIN_EMAIL
         value: admin@example.com
       - key: ADMIN_PASSWORD
         generateValue: true
 
-# Managed Redis for Socket.io & caching
-  - type: redis
-    name: liveapp-redis
-    plan: starter
-    ipAllowList: []
-
-# Managed PostgreSQL Database
+# Managed PostgreSQL Database (Free tier on Render)
 databases:
   - name: liveapp-db
-    plan: starter
+    plan: free
     databaseName: liveapp
-    user: liveapp
