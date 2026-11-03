@@ -1,0 +1,18 @@
+# LiveKit (open-source WebRTC SFU) — handles live rooms, PK, multi-guest and party seats.
+port: 7880
+bind_addresses: [""]
+rtc:
+  tcp_port: 7881            # fallback for networks that block UDP
+  port_range_start: 50000   # UDP media ports — open these in your VPS firewall
+  port_range_end: 50200
+  use_external_ip: true
+  enable_loopback_candidate: false
+redis:
+  address: 127.0.0.1:6379
+keys:
+  __LIVEKIT_API_KEY__: __LIVEKIT_API_SECRET__
+room:
+  empty_timeout: 300
+  max_participants: 2000
+logging:
+  level: info

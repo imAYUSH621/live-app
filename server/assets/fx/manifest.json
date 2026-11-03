@@ -1,0 +1,618 @@
+{
+ "gifts": [
+  {
+   "name": "Sparkling Heart",
+   "slug": "sparkling-heart",
+   "price": 499,
+   "theme": "rose",
+   "template": "heart",
+   "svga": "gift-sparkling-heart.svga",
+   "icon": "sparkling-heart.webp",
+   "bytes": 190357
+  },
+  {
+   "name": "Love Letter",
+   "slug": "love-letter",
+   "price": 520,
+   "theme": "rose",
+   "template": "heart",
+   "svga": "gift-love-letter.svga",
+   "icon": "love-letter.webp",
+   "bytes": 168914
+  },
+  {
+   "name": "Heart Ribbon",
+   "slug": "heart-ribbon",
+   "price": 599,
+   "theme": "rose",
+   "template": "heart",
+   "svga": "gift-heart-ribbon.svga",
+   "icon": "heart-ribbon.webp",
+   "bytes": 189343
+  },
+  {
+   "name": "Royal Bouquet",
+   "slug": "royal-bouquet",
+   "price": 699,
+   "theme": "rose",
+   "template": "rain",
+   "svga": "gift-royal-bouquet.svga",
+   "icon": "royal-bouquet.webp",
+   "bytes": 190104
+  },
+  {
+   "name": "Golden Diya",
+   "slug": "golden-diya",
+   "price": 501,
+   "theme": "gold",
+   "template": "royal",
+   "svga": "gift-golden-diya.svga",
+   "icon": "golden-diya.webp",
+   "bytes": 277630
+  },
+  {
+   "name": "Magic Wand",
+   "slug": "magic-wand",
+   "price": 799,
+   "theme": "royal",
+   "template": "royal",
+   "svga": "gift-magic-wand.svga",
+   "icon": "magic-wand.webp",
+   "bytes": 239224
+  },
+  {
+   "name": "Butterfly Dream",
+   "slug": "butterfly-dream",
+   "price": 777,
+   "theme": "sapphire",
+   "template": "rain",
+   "svga": "gift-butterfly-dream.svga",
+   "icon": "butterfly-dream.webp",
+   "bytes": 246645
+  },
+  {
+   "name": "Cherry Blossom",
+   "slug": "cherry-blossom",
+   "price": 888,
+   "theme": "rose",
+   "template": "rain",
+   "svga": "gift-cherry-blossom.svga",
+   "icon": "cherry-blossom.webp",
+   "bytes": 175177
+  },
+  {
+   "name": "Birthday Cake",
+   "slug": "birthday-cake",
+   "price": 888,
+   "theme": "gold",
+   "template": "party",
+   "svga": "gift-birthday-cake.svga",
+   "icon": "birthday-cake.webp",
+   "bytes": 303126
+  },
+  {
+   "name": "Gold Medal",
+   "slug": "gold-medal",
+   "price": 999,
+   "theme": "gold",
+   "template": "royal",
+   "svga": "gift-gold-medal.svga",
+   "icon": "gold-medal.webp",
+   "bytes": 253868
+  },
+  {
+   "name": "Rose Rain",
+   "slug": "rose-rain",
+   "price": 999,
+   "theme": "ruby",
+   "template": "rain",
+   "svga": "gift-rose-rain.svga",
+   "icon": "rose-rain.webp",
+   "bytes": 151447
+  },
+  {
+   "name": "Teddy Love",
+   "slug": "teddy-love",
+   "price": 1099,
+   "theme": "rose",
+   "template": "heart",
+   "svga": "gift-teddy-love.svga",
+   "icon": "teddy-love.webp",
+   "bytes": 216473
+  },
+  {
+   "name": "Mirror Ball",
+   "slug": "mirror-ball",
+   "price": 1199,
+   "theme": "royal",
+   "template": "orbit",
+   "svga": "gift-mirror-ball.svga",
+   "icon": "mirror-ball.webp",
+   "bytes": 230209
+  },
+  {
+   "name": "Champagne",
+   "slug": "champagne",
+   "price": 1299,
+   "theme": "gold",
+   "template": "party",
+   "svga": "gift-champagne.svga",
+   "icon": "champagne.webp",
+   "bytes": 292897
+  },
+  {
+   "name": "Crystal Ball",
+   "slug": "crystal-ball",
+   "price": 1314,
+   "theme": "royal",
+   "template": "orbit",
+   "svga": "gift-crystal-ball.svga",
+   "icon": "crystal-ball.webp",
+   "bytes": 232982
+  },
+  {
+   "name": "Champion Trophy",
+   "slug": "champion-trophy",
+   "price": 1499,
+   "theme": "gold",
+   "template": "royal",
+   "svga": "gift-champion-trophy.svga",
+   "icon": "champion-trophy.webp",
+   "bytes": 314581
+  },
+  {
+   "name": "Rainbow",
+   "slug": "rainbow",
+   "price": 1888,
+   "theme": "sapphire",
+   "template": "royal",
+   "svga": "gift-rainbow.svga",
+   "icon": "rainbow.webp",
+   "bytes": 253680
+  },
+  {
+   "name": "Royal Crown",
+   "slug": "royal-crown",
+   "price": 1999,
+   "theme": "gold",
+   "template": "royal",
+   "svga": "gift-royal-crown.svga",
+   "icon": "royal-crown.webp",
+   "bytes": 252160
+  },
+  {
+   "name": "Shooting Star",
+   "slug": "shooting-star",
+   "price": 2222,
+   "theme": "sapphire",
+   "template": "fly",
+   "svga": "gift-shooting-star.svga",
+   "icon": "shooting-star.webp",
+   "bytes": 211565
+  },
+  {
+   "name": "Fireworks",
+   "slug": "fireworks",
+   "price": 2500,
+   "theme": "royal",
+   "template": "rise",
+   "svga": "gift-fireworks.svga",
+   "icon": "fireworks.webp",
+   "bytes": 207746
+  },
+  {
+   "name": "Superbike",
+   "slug": "superbike",
+   "price": 2999,
+   "theme": "ruby",
+   "template": "fly",
+   "svga": "gift-superbike.svga",
+   "icon": "superbike.webp",
+   "bytes": 212671
+  },
+  {
+   "name": "Royal Diamond",
+   "slug": "royal-diamond",
+   "price": 3333,
+   "theme": "sapphire",
+   "template": "treasure",
+   "svga": "gift-royal-diamond.svga",
+   "icon": "royal-diamond.webp",
+   "bytes": 239741
+  },
+  {
+   "name": "Money Rain",
+   "slug": "money-rain",
+   "price": 3999,
+   "theme": "gold",
+   "template": "treasure",
+   "svga": "gift-money-rain.svga",
+   "icon": "money-rain.webp",
+   "bytes": 278726
+  },
+  {
+   "name": "Golden Moon",
+   "slug": "golden-moon",
+   "price": 4444,
+   "theme": "royal",
+   "template": "orbit",
+   "svga": "gift-golden-moon.svga",
+   "icon": "golden-moon.webp",
+   "bytes": 205758
+  },
+  {
+   "name": "Sports Car",
+   "slug": "sports-car",
+   "price": 4999,
+   "theme": "ruby",
+   "template": "fly",
+   "svga": "gift-sports-car.svga",
+   "icon": "sports-car.webp",
+   "bytes": 178838
+  },
+  {
+   "name": "Eternal Ring",
+   "slug": "eternal-ring",
+   "price": 5200,
+   "theme": "gold",
+   "template": "royal",
+   "svga": "gift-eternal-ring.svga",
+   "icon": "eternal-ring.webp",
+   "bytes": 311900
+  },
+  {
+   "name": "Royal Swan",
+   "slug": "royal-swan",
+   "price": 6666,
+   "theme": "sapphire",
+   "template": "heart",
+   "svga": "gift-royal-swan.svga",
+   "icon": "royal-swan.webp",
+   "bytes": 171238
+  },
+  {
+   "name": "Luxury Yacht",
+   "slug": "luxury-yacht",
+   "price": 6999,
+   "theme": "sapphire",
+   "template": "fly",
+   "svga": "gift-luxury-yacht.svga",
+   "icon": "luxury-yacht.webp",
+   "bytes": 193862
+  },
+  {
+   "name": "Helicopter",
+   "slug": "helicopter",
+   "price": 7999,
+   "theme": "emerald",
+   "template": "fly",
+   "svga": "gift-helicopter.svga",
+   "icon": "helicopter.webp",
+   "bytes": 210885
+  },
+  {
+   "name": "Ferris Wheel",
+   "slug": "ferris-wheel",
+   "price": 8888,
+   "theme": "royal",
+   "template": "orbit",
+   "svga": "gift-ferris-wheel.svga",
+   "icon": "ferris-wheel.webp",
+   "bytes": 272789
+  },
+  {
+   "name": "Private Jet",
+   "slug": "private-jet",
+   "price": 9999,
+   "theme": "sapphire",
+   "template": "fly",
+   "svga": "gift-private-jet.svga",
+   "icon": "private-jet.webp",
+   "bytes": 243361
+  },
+  {
+   "name": "Royal Peacock",
+   "slug": "royal-peacock",
+   "price": 11111,
+   "theme": "emerald",
+   "template": "royal",
+   "svga": "gift-royal-peacock.svga",
+   "icon": "royal-peacock.webp",
+   "bytes": 295951
+  },
+  {
+   "name": "Golden Eagle",
+   "slug": "golden-eagle",
+   "price": 12999,
+   "theme": "gold",
+   "template": "roar",
+   "svga": "gift-golden-eagle.svga",
+   "icon": "golden-eagle.webp",
+   "bytes": 249748
+  },
+  {
+   "name": "Space Rocket",
+   "slug": "space-rocket",
+   "price": 14999,
+   "theme": "fire",
+   "template": "rise",
+   "svga": "gift-space-rocket.svga",
+   "icon": "space-rocket.webp",
+   "bytes": 222517
+  },
+  {
+   "name": "Unicorn",
+   "slug": "unicorn",
+   "price": 17777,
+   "theme": "royal",
+   "template": "roar",
+   "svga": "gift-unicorn.svga",
+   "icon": "unicorn.webp",
+   "bytes": 274959
+  },
+  {
+   "name": "Saturn",
+   "slug": "saturn",
+   "price": 19999,
+   "theme": "royal",
+   "template": "orbit",
+   "svga": "gift-saturn.svga",
+   "icon": "saturn.webp",
+   "bytes": 217449
+  },
+  {
+   "name": "Royal Castle",
+   "slug": "royal-castle",
+   "price": 29999,
+   "theme": "gold",
+   "template": "royal",
+   "svga": "gift-royal-castle.svga",
+   "icon": "royal-castle.webp",
+   "bytes": 313970
+  },
+  {
+   "name": "Tiger King",
+   "slug": "tiger-king",
+   "price": 39999,
+   "theme": "fire",
+   "template": "roar",
+   "svga": "gift-tiger-king.svga",
+   "icon": "tiger-king.webp",
+   "bytes": 267755
+  },
+  {
+   "name": "Lion King",
+   "slug": "lion-king",
+   "price": 59999,
+   "theme": "gold",
+   "template": "roar",
+   "svga": "gift-lion-king.svga",
+   "icon": "lion-king.webp",
+   "bytes": 305871
+  },
+  {
+   "name": "Fire Dragon",
+   "slug": "fire-dragon",
+   "price": 99999,
+   "theme": "fire",
+   "template": "roar",
+   "svga": "gift-fire-dragon.svga",
+   "icon": "fire-dragon.webp",
+   "bytes": 303432
+  }
+ ],
+ "entries": [
+  {
+   "name": "Royal Arrival",
+   "slug": "royal-arrival",
+   "price": 3000,
+   "theme": "gold",
+   "svga": "entry-royal-arrival.svga",
+   "icon": "entry-royal-arrival.webp",
+   "bytes": 92415
+  },
+  {
+   "name": "Sports Car Entry",
+   "slug": "sports-car-entry",
+   "price": 8000,
+   "theme": "ruby",
+   "svga": "entry-sports-car-entry.svga",
+   "icon": "entry-sports-car-entry.webp",
+   "bytes": 77701
+  },
+  {
+   "name": "Superbike Entry",
+   "slug": "superbike-entry",
+   "price": 6000,
+   "theme": "fire",
+   "svga": "entry-superbike-entry.svga",
+   "icon": "entry-superbike-entry.webp",
+   "bytes": 91947
+  },
+  {
+   "name": "Yacht Entry",
+   "slug": "yacht-entry",
+   "price": 12000,
+   "theme": "sapphire",
+   "svga": "entry-yacht-entry.svga",
+   "icon": "entry-yacht-entry.webp",
+   "bytes": 83932
+  },
+  {
+   "name": "Private Jet Entry",
+   "slug": "private-jet-entry",
+   "price": 20000,
+   "theme": "sapphire",
+   "svga": "entry-private-jet-entry.svga",
+   "icon": "entry-private-jet-entry.webp",
+   "bytes": 104483
+  },
+  {
+   "name": "Helicopter Entry",
+   "slug": "helicopter-entry",
+   "price": 15000,
+   "theme": "emerald",
+   "svga": "entry-helicopter-entry.svga",
+   "icon": "entry-helicopter-entry.webp",
+   "bytes": 92556
+  },
+  {
+   "name": "Unicorn Ride",
+   "slug": "unicorn-ride",
+   "price": 25000,
+   "theme": "royal",
+   "svga": "entry-unicorn-ride.svga",
+   "icon": "entry-unicorn-ride.webp",
+   "bytes": 98145
+  },
+  {
+   "name": "Lion Ride",
+   "slug": "lion-ride",
+   "price": 30000,
+   "theme": "gold",
+   "svga": "entry-lion-ride.svga",
+   "icon": "entry-lion-ride.webp",
+   "bytes": 111572
+  },
+  {
+   "name": "Dragon Ride",
+   "slug": "dragon-ride",
+   "price": 50000,
+   "theme": "fire",
+   "svga": "entry-dragon-ride.svga",
+   "icon": "entry-dragon-ride.webp",
+   "bytes": 106057
+  },
+  {
+   "name": "Rocket Entry",
+   "slug": "rocket-entry",
+   "price": 40000,
+   "theme": "fire",
+   "svga": "entry-rocket-entry.svga",
+   "icon": "entry-rocket-entry.webp",
+   "bytes": 98116
+  }
+ ],
+ "small": [
+  {
+   "name": "Rose",
+   "slug": "rose",
+   "price": 1,
+   "icon": "rose.webp"
+  },
+  {
+   "name": "Heart",
+   "slug": "heart",
+   "price": 5,
+   "icon": "heart.webp"
+  },
+  {
+   "name": "Kiss",
+   "slug": "kiss",
+   "price": 10,
+   "icon": "kiss.webp"
+  },
+  {
+   "name": "Chai",
+   "slug": "chai",
+   "price": 10,
+   "icon": "chai.webp"
+  },
+  {
+   "name": "Lollipop",
+   "slug": "lollipop",
+   "price": 15,
+   "icon": "lollipop.webp"
+  },
+  {
+   "name": "Candy",
+   "slug": "candy",
+   "price": 19,
+   "icon": "candy.webp"
+  },
+  {
+   "name": "Ice Cream",
+   "slug": "ice-cream",
+   "price": 29,
+   "icon": "ice-cream.webp"
+  },
+  {
+   "name": "Doughnut",
+   "slug": "doughnut",
+   "price": 39,
+   "icon": "doughnut.webp"
+  },
+  {
+   "name": "Chocolate",
+   "slug": "chocolate",
+   "price": 49,
+   "icon": "chocolate.webp"
+  },
+  {
+   "name": "Balloon",
+   "slug": "balloon",
+   "price": 66,
+   "icon": "balloon.webp"
+  },
+  {
+   "name": "Cupcake",
+   "slug": "cupcake",
+   "price": 79,
+   "icon": "cupcake.webp"
+  },
+  {
+   "name": "Tulip",
+   "slug": "tulip",
+   "price": 99,
+   "icon": "tulip.webp"
+  },
+  {
+   "name": "Cocktail",
+   "slug": "cocktail",
+   "price": 129,
+   "icon": "cocktail.webp"
+  },
+  {
+   "name": "Cheers",
+   "slug": "cheers",
+   "price": 149,
+   "icon": "cheers.webp"
+  },
+  {
+   "name": "Melody",
+   "slug": "melody",
+   "price": 199,
+   "icon": "melody.webp"
+  },
+  {
+   "name": "Mic",
+   "slug": "mic",
+   "price": 249,
+   "icon": "mic.webp"
+  },
+  {
+   "name": "Guitar",
+   "slug": "guitar",
+   "price": 299,
+   "icon": "guitar.webp"
+  },
+  {
+   "name": "Lipstick",
+   "slug": "lipstick",
+   "price": 349,
+   "icon": "lipstick.webp"
+  },
+  {
+   "name": "Heels",
+   "slug": "heels",
+   "price": 399,
+   "icon": "heels.webp"
+  },
+  {
+   "name": "Gift Box",
+   "slug": "gift-box",
+   "price": 449,
+   "icon": "gift-box.webp"
+  }
+ ]
+}

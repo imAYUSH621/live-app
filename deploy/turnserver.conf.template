@@ -1,0 +1,18 @@
+# coturn — TURN relay for 1v1 P2P calls when a network blocks direct connections.
+listening-port=3478
+fingerprint
+use-auth-secret
+static-auth-secret=__TURN_SECRET__
+realm=__DOMAIN__
+external-ip=__PUBLIC_IP__
+min-port=49160
+max-port=49250
+no-cli
+no-tlsv1
+no-tlsv1_1
+no-multicast-peers
+denied-peer-ip=10.0.0.0-10.255.255.255
+denied-peer-ip=172.16.0.0-172.31.255.255
+denied-peer-ip=192.168.0.0-192.168.255.255
+total-quota=200
+stale-nonce=600

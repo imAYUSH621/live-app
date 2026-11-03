@@ -1,0 +1,10 @@
+node_modules
+dist
+.env
+.DS_Store
+server/uploads
+deploy/livekit.yaml
+deploy/turnserver.conf
+mobile/android
+mobile/.expo
+mobile/dist

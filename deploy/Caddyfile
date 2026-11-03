@@ -1,0 +1,53 @@
+{
+	email {$ACME_EMAIL}
+	servers {
+		protocols h1 h2
+	}
+}
+
+(api) {
+	handle /api/* {
+		reverse_proxy api:4000
+	}
+	handle /socket.io/* {
+		reverse_proxy api:4000
+	}
+	handle /fx/* {
+		header Cache-Control "public, max-age=31536000, immutable"
+		reverse_proxy api:4000
+	}
+	handle /uploads/* {
+		header Cache-Control "public, max-age=2592000, immutable"
+		reverse_proxy api:4000
+	}
+}
+
+# User app (PWA) — also what the Android APK opens
+{$APP_DOMAIN} {
+	encode gzip zstd
+	import api
+	handle {
+		root * /srv/web
+		try_files {path} /index.html
+		file_server
+	}
+	header /sw.js Cache-Control "no-cache"
+	header /assets/* Cache-Control "public, max-age=31536000, immutable"
+}
+
+# Admin / agency / coin-seller panel
+{$ADMIN_DOMAIN} {
+	encode gzip zstd
+	import api
+	handle {
+		root * /srv/admin
+		try_files {path} /index.html
+		file_server
+	}
+	header X-Robots-Tag "noindex"
+}
+
+# LiveKit signalling over secure WebSocket (media itself goes over UDP straight to the server)
+{$LIVE_DOMAIN} {
+	reverse_proxy host.docker.internal:7880
+}

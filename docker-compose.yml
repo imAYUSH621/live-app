@@ -1,0 +1,72 @@
+# One VPS runs everything. Start with: ./deploy/install.sh   (or: docker compose up -d --build)
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: liveapp
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: liveapp
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U liveapp"], interval: 5s, retries: 20 }
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --bind 0.0.0.0 --protected-mode no
+    ports: ["127.0.0.1:6379:6379"]   # LiveKit (host network) uses it too; not exposed publicly
+    volumes: [redisdata:/data]
+
+  api:
+    build: ./server
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://liveapp:${POSTGRES_PASSWORD}@postgres:5432/liveapp
+      REDIS_URL: redis://redis:6379
+      UPLOAD_DIR: /data/uploads
+      LIVEKIT_API_URL: http://host.docker.internal:7880
+      NODE_ENV: production
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    volumes: [uploads:/data/uploads]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_started }
+
+  livekit:
+    image: livekit/livekit-server:latest
+    restart: unless-stopped
+    network_mode: host               # direct UDP for low-latency video
+    command: --config /etc/livekit.yaml
+    volumes: [./deploy/livekit.yaml:/etc/livekit.yaml:ro]
+    depends_on: [redis]
+
+  coturn:
+    image: coturn/coturn:latest
+    restart: unless-stopped
+    network_mode: host
+    volumes: [./deploy/turnserver.conf:/etc/coturn/turnserver.conf:ro]
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.web
+      args:
+        APP_NAME: ${APP_NAME:-LiveApp}
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN}
+      LIVE_DOMAIN: ${LIVE_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    volumes: [caddydata:/data, caddyconfig:/config]
+    depends_on: [api]
+
+volumes:
+  pgdata:
+  redisdata:
+  uploads:
+  caddydata:
+  caddyconfig:
