@@ -40,7 +40,6 @@ export interface UserItem {
 }
 
 export interface User extends MiniProfile {
-  is_host?: boolean;
   isHost?: boolean;
   verified?: boolean;
   hostStatus?: 'none' | 'pending' | 'agency_ok' | 'approved' | 'rejected' | 'suspended';
