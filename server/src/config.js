@@ -46,3 +46,9 @@ export const config = {
 };
 
 export const isProd = config.nodeEnv === 'production';
+
+// Fail closed in production: weak development defaults must never serve real users.
+if (isProd) {
+  if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET must be set explicitly in production');
+  if (!process.env.ADMIN_PASSWORD) throw new Error('ADMIN_PASSWORD must be set explicitly in production');
+}

@@ -77,7 +77,11 @@ r.post('/otp/send', async (req, res) => {
   const rawPhone = str(req.body.phone, 20).replace(/[^\d+]/g, '');
   const phone = rawPhone.replace(/^\+?91/, '').replace(/\D/g, '') || rawPhone;
   need(phone.length >= 8, 'Enter a valid phone number');
-  const isDemo = phone.startsWith('999999') || phone.includes('999999') || ['9999990001', '9999990002', '9999990003', '9999990004'].includes(phone);
+  // Demo-phone OTP shortcut: staging/demo convenience only, requires BOTH a
+  // non-production NODE_ENV and the explicit ALLOW_DEMO_LOGIN=true opt-in.
+  // Production always fails closed - every phone needs its real OTP.
+  const demoPhonesEnabled = config.nodeEnv !== 'production' && process.env.ALLOW_DEMO_LOGIN === 'true';
+  const isDemo = demoPhonesEnabled && (phone.startsWith('999999') || phone.includes('999999') || ['9999990001', '9999990002', '9999990003', '9999990004'].includes(phone));
   const code = isDemo ? '123456' : randomDigits(6);
   await q(
     `INSERT INTO otp_codes(phone, code, expires_at, attempts) VALUES ($1,$2, now() + interval '30 minutes', 0)
@@ -106,7 +110,11 @@ r.post('/otp/verify', async (req, res) => {
   const rawPhone = str(req.body.phone, 20).replace(/[^\d+]/g, '');
   const phone = rawPhone.replace(/^\+?91/, '').replace(/\D/g, '') || rawPhone;
   const inputCode = String(req.body.code || '').trim();
-  const isDemo = phone.startsWith('999999') || phone.includes('999999') || ['9999990001', '9999990002', '9999990003', '9999990004'].includes(phone);
+  // Demo-phone OTP shortcut: staging/demo convenience only, requires BOTH a
+  // non-production NODE_ENV and the explicit ALLOW_DEMO_LOGIN=true opt-in.
+  // Production always fails closed - every phone needs its real OTP.
+  const demoPhonesEnabled = config.nodeEnv !== 'production' && process.env.ALLOW_DEMO_LOGIN === 'true';
+  const isDemo = demoPhonesEnabled && (phone.startsWith('999999') || phone.includes('999999') || ['9999990001', '9999990002', '9999990003', '9999990004'].includes(phone));
 
   const row = await one(
     `UPDATE otp_codes SET attempts = attempts + 1 

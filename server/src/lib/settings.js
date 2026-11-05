@@ -56,7 +56,7 @@ export const DEFAULT_SETTINGS = {
   },
   pk: { duration: 300, punishment: 60, min_level: 0 },
   room: {
-    host_only_live: false,     // true = only approved hosts can go live
+    host_only_live: true,      // only approved hosts can go live (admin can relax in settings)
     multi_seats: [3, 6, 9], party_seats: 8, max_title: 60,
     thumbnail_interval_sec: 60, idle_end_minutes: 10,
     chat_slow_ms: 800, like_batch_ms: 1500,
