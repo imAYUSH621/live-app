@@ -41,7 +41,7 @@ r.get('/live/feed', auth, async (req, res) => {
   if (tab === 'nearby' || tab === 'country') { params.push(str(req.query.country, 3) || req.user.country); where += ` AND r.country=$${params.length}`; }
   if (tab === 'following') { params.push(req.user.id); where += ` AND r.host_id IN (SELECT followee_id FROM follows WHERE follower_id=$${params.length})`; }
   if (tab === 'multi') where += ` AND r.type='multi'`;
-  if (tab === 'party') where += ` AND r.type='party'`;
+  if (tab === 'party' || tab === 'audio') where += ` AND (r.type='party' OR r.type='audio')`;
   if (tab === 'game') where += ` AND r.type='game'`;
   if (tab === 'pk') where += ` AND EXISTS (SELECT 1 FROM pk_battles p WHERE p.status IN ('active','punishment') AND (p.room_a=r.id OR p.room_b=r.id))`;
   if (tab === 'new') where += ` AND h.approved_at > now() - interval '30 days'`;
@@ -76,10 +76,14 @@ r.get('/live/:id', auth, async (req, res) => {
 });
 
 // ---------- go live ----------
-r.post('/live/start', auth, async (req, res) => {
+r.post('/live/start', auth, uploader(['image']).single('cover'), async (req, res) => {
   const s = await getSettings();
   need(s.features.live, 'Live is disabled');
-  const type = ['solo', 'multi', 'party', 'game'].includes(req.body.type) ? req.body.type : 'solo';
+  const b = req.body || {};
+  const rawType = b.type || 'solo';
+  const type = (rawType === 'video' || rawType === 'solo') ? 'solo'
+             : (rawType === 'audio' || rawType === 'party') ? 'party'
+             : ['multi', 'game'].includes(rawType) ? rawType : 'solo';
   if (type === 'multi') need(s.features.multi_guest, 'Multi-guest is disabled');
   if (type === 'party') need(s.features.party_rooms, 'Party rooms are disabled');
   if (type === 'game') need(s.features.game_live, 'Game live is disabled');
@@ -90,17 +94,18 @@ r.post('/live/start', auth, async (req, res) => {
   const existing = await one(`SELECT id FROM rooms WHERE host_id=$1 AND status='live'`, [req.user.id]);
   if (existing) await endRoom(existing.id, 'restarted');
 
-  const privacy = ['public', 'password', 'vip', 'ticket'].includes(req.body.privacy) ? req.body.privacy : 'public';
+  const privacy = ['public', 'password', 'vip', 'ticket'].includes(b.privacy) ? b.privacy : 'public';
   const seatsAllowed = type === 'multi' ? s.room.multi_seats : type === 'party' ? [s.room.party_seats] : [0];
-  let seats = int(req.body.seats, seatsAllowed[seatsAllowed.length - 1]);
+  let seats = int(b.seats, seatsAllowed[seatsAllowed.length - 1]);
   if (!seatsAllowed.includes(seats)) seats = seatsAllowed[seatsAllowed.length - 1];
-  const title = (await filterText(str(req.body.title, s.room.max_title))).text || `${req.user.name}'s live`;
+  const title = (await filterText(str(b.title, s.room.max_title))).text || `${req.user.name}'s live`;
+  const coverUrl = req.file ? fileUrl(req.file) : (b.cover_url || req.user.avatar_url || '/assets/default-cover.jpg');
   const room = await one(
     `INSERT INTO rooms(host_id, type, title, tags, privacy, password, ticket_price, seats, country, livekit_room, cover_url, theme)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-    [req.user.id, type, title, (Array.isArray(req.body.tags) ? req.body.tags : []).slice(0, 5).map((t) => str(t, 20)),
-     privacy, privacy === 'password' ? str(req.body.password, 20) : null, privacy === 'ticket' ? Math.max(1, int(req.body.ticket_price, 10)) : 0,
-     seats, req.user.country, `pending_${Date.now()}_${req.user.id}`, req.user.avatar_url, str(req.body.theme, 20) || 'default'],
+    [req.user.id, type, title, (Array.isArray(b.tags) ? b.tags : []).slice(0, 5).map((t) => str(t, 20)),
+     privacy, privacy === 'password' ? str(b.password, 20) : null, privacy === 'ticket' ? Math.max(1, int(b.ticket_price, 10)) : 0,
+     seats, req.user.country, `pending_${Date.now()}_${req.user.id}`, coverUrl, str(b.theme, 20) || 'default'],
   );
   await q('UPDATE rooms SET livekit_room=$2 WHERE id=$1', [room.id, lkRoomName(room.id)]);
   if (seats > 0) await rs.initSeats(room.id, seats);
@@ -129,6 +134,15 @@ r.post('/live/start', auth, async (req, res) => {
     },
     token,
     livekit_url: livekitUrl(),
+    isHost: true,
+    rtc: {
+      token,
+      livekit_url: livekitUrl(),
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+      ],
+    },
     state,
   });
 });
@@ -219,6 +233,15 @@ r.post('/live/:id/join', auth, async (req, res) => {
     },
     token,
     livekit_url: livekitUrl(),
+    isHost,
+    rtc: {
+      token,
+      livekit_url: livekitUrl(),
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+      ],
+    },
     state,
   });
 });

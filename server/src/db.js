@@ -6,7 +6,7 @@ pg.types.setTypeParser(20, (v) => (v === null ? null : Number(v)));
 // NUMERIC -> number
 pg.types.setTypeParser(1700, (v) => (v === null ? null : Number(v)));
 
-const isRemoteDb = !config.databaseUrl.includes('localhost') && !config.databaseUrl.includes('127.0.0.1');
+const isRemoteDb = !config.databaseUrl.includes('localhost') && !config.databaseUrl.includes('127.0.0.1') && !config.databaseUrl.includes('@postgres:');
 
 export const pool = new pg.Pool({
   connectionString: config.databaseUrl,

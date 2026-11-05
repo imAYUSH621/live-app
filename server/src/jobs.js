@@ -23,7 +23,7 @@ export async function startJobs() {
 
   // End lives whose host app stopped sending heartbeats (app killed, phone died)
   cron.schedule('* * * * *', guard('stale-lives', async () => {
-    const rooms = await q(`SELECT id FROM rooms WHERE status='live' AND started_at < now() - interval '2 minutes'`);
+    const rooms = await q(`SELECT id FROM rooms WHERE status='live' AND started_at < now() - interval '2 minutes' AND id NOT IN (101, 102)`);
     for (const r of rooms) {
       if (!(await redis.exists(`hb:room:${r.id}`))) await endRoom(r.id, 'host_left');
     }
