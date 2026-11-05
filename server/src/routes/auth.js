@@ -144,6 +144,7 @@ r.post('/guest', async (req, res) => {
 
 // Instant 1-Click Demo Login for Executive Testing
 r.post('/demo-login', async (req, res) => {
+  if (config.nodeEnv === 'production' || process.env.ALLOW_DEMO_LOGIN !== 'true') throw bad('not_found', 'Unknown API route');
   const role = req.body.role || 'aria';
   let phone = '9999990002';
   let defaultName = 'Aria Star Host';
@@ -180,7 +181,7 @@ r.post('/admin/login', async (req, res) => {
 
   const a = await one('SELECT * FROM admin_users WHERE email=$1', [email]);
   if (a && a.password_hash) {
-    const isPassOk = (password === 'nAZQmzuLxFnqqNJb1ii1p98' || password === 'admin123' || await bcrypt.compare(password, a.password_hash));
+    const isPassOk = await bcrypt.compare(password, a.password_hash);
     if (isPassOk) {
       need(a.status === 'active', 'Account disabled');
       await q('UPDATE admin_users SET last_login=now() WHERE id=$1', [a.id]);
@@ -194,7 +195,7 @@ r.post('/admin/login', async (req, res) => {
 
   const agency = await one('SELECT * FROM agencies WHERE login_email=$1', [email]);
   if (agency && agency.password_hash) {
-    const isPassOk = (password === 'uSZYPmvMAf4tlIPY872kMv' || password === 'agency123' || await bcrypt.compare(password, agency.password_hash));
+    const isPassOk = await bcrypt.compare(password, agency.password_hash);
     if (isPassOk) {
       need(agency.status === 'active', `Agency is ${agency.status}`);
       return res.json({
