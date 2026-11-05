@@ -220,9 +220,15 @@ r.post('/live/:id/join', auth, async (req, res) => {
   }
   await redis.set(`ra:${room.id}:${req.user.id}`, '1', 'EX', 6 * 3600); // lets the socket join this room
   const seats = await rs.getSeats(room.id);
-  const onSeat = seats.some((s) => Number(s.user_id) === req.user.id);
+  const mySeat = seats.find((s) => Number(s.user_id) === req.user.id);
+  const onSeat = !!mySeat;
+  // Least privilege: a muted seat never gets a publish grant, and publish-capable
+  // tokens expire quickly so a removed seat cannot replay an old token for long.
+  // (LiveKit has no token revocation; removal also force-disconnects the session.)
+  const canPublish = isHost || (onSeat && !mySeat.muted);
   const token = await lkToken({
-    room: lkRoomName(room.id), identity: req.user.id, name: req.user.name, publish: isHost || onSeat,
+    room: lkRoomName(room.id), identity: req.user.id, name: req.user.name, publish: canPublish,
+    ttl: canPublish && !isHost ? '15m' : '6h',
     metadata: { role: isHost ? 'host' : 'viewer' },
   });
   const state = await roomState(room, req.user.id);
@@ -384,7 +390,7 @@ r.post('/live/:id/seats/leave', auth, async (req, res) => {
 r.post('/live/:id/seats/remove', auth, async (req, res) => {
   const room = await getLiveRoom(req.params.id);
   await requireAdminOf(room, req.user.id);
-  await removeFromSeat(room, int(req.body.user_id));
+  await removeFromSeat(room, int(req.body.user_id), { kick: true });
   res.json({ ok: true });
 });
 

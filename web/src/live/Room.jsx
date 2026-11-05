@@ -216,9 +216,13 @@ export default function Room() {
   };
   const takeSeat = (no) => api(`/live/${id}/seats/take`, { method: 'POST', body: { seat: no } }).catch((e) => toast(e.message, 'error'));
   const leaveSeat = () => api(`/live/${id}/seats/leave`, { method: 'POST' }).catch(() => { });
-  const seatAdmin = (no, action) => {
+  const seatAdmin = (no, action, userId) => {
     const url = action === 'kick' ? 'remove' : action === 'lock' ? 'lock' : 'mute';
-    api(`/live/${id}/seats/${url}`, { method: 'POST', body: { seat: no } }).catch((e) => toast(e.message, 'error'));
+    const body = { seat: no };
+    if (url === 'lock') body.locked = true;
+    if (url === 'mute') body.muted = true;
+    if (url === 'remove') body.user_id = userId;
+    api(`/live/${id}/seats/${url}`, { method: 'POST', body }).catch((e) => toast(e.message, 'error'));
   };
   const hostAct = (action, userId) => {
     const path = action === 'kick' ? 'kick' : 'mute';
@@ -380,7 +384,7 @@ export default function Room() {
               <button className="btn danger" onClick={() => hostAct('kick', sheet.user.id)}>Remove</button>
             </>}
             {isHost && sheet.seat && <button className="btn ghost" onClick={() => { seatAdmin(sheet.seat, 'mute'); setSheet(null); }}>Mute seat</button>}
-            {isHost && sheet.seat && <button className="btn ghost" onClick={() => { seatAdmin(sheet.seat, 'kick'); setSheet(null); }}>Down from seat</button>}
+            {isHost && sheet.seat && <button className="btn ghost" onClick={() => { seatAdmin(sheet.seat, 'kick', sheet.user?.id); setSheet(null); }}>Down from seat</button>}
           </div>
         </Sheet>
       )}

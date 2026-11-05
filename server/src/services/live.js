@@ -3,7 +3,7 @@ import { redis } from '../redis.js';
 import * as rs from './roomstate.js';
 import { miniProfile, miniProfiles } from './profile.js';
 import { toRoom, toUser } from '../lib/io.js';
-import { closeRoom, lkToken, setPublish } from '../lib/livekit.js';
+import { closeRoom, lkToken, setPublish, kickFromRoom } from '../lib/livekit.js';
 import { getSettings } from '../lib/settings.js';
 import { config } from '../config.js';
 import { bumpTask } from './tasks.js';
@@ -168,7 +168,7 @@ export async function placeOnSeat(room, userId, seatNo) {
   return seats;
 }
 
-export async function removeFromSeat(room, userId) {
+export async function removeFromSeat(room, userId, { kick = false } = {}) {
   const seats = await rs.getSeats(room.id);
   const seat = seats.find((s) => Number(s.user_id) === Number(userId));
   if (!seat) return seats;
@@ -176,6 +176,9 @@ export async function removeFromSeat(room, userId) {
   seat.muted = false;
   await rs.setSeats(room.id, seats);
   await setPublish(lkRoomName(room.id), userId, false);
+  // Forced removal also drops the live SFU session: otherwise the removed user
+  // keeps publishing until their (old, publish-capable) token session ends.
+  if (kick) await kickFromRoom(lkRoomName(room.id), userId);
   await broadcastSeats(room.id, seats);
   toUser(userId, 'seat:removed', { room_id: room.id });
   return seats;
