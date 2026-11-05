@@ -31,7 +31,10 @@ export async function livekitWebhook(req, res) {
   // SFU. Production seat publishing is gated on this, not on the env flag
   // alone - a typo'd or unreachable webhook URL must not silently enable
   // seat publishing without the reconciliation path being live.
-  await redis.set('lk:webhook:delivered', String(Date.now()));
+  // 1h TTL, refreshed by every verified event: if the delivery path breaks,
+  // the production seat gate closes again within an hour. (A fully quiet
+  // deployment also lets it lapse - the next room's join event re-proves it.)
+  await redis.set('lk:webhook:delivered', String(Date.now()), 'EX', 3600);
   try {
     const m = /^live_(\d+)$/.exec(ev.room?.name || '');
     if (m && (ev.event === 'participant_joined' || ev.event === 'track_published')) {
