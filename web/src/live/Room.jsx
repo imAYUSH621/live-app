@@ -259,7 +259,7 @@ export default function Room() {
     <div className={`room ${type}`}>
       {/* ---------- stage ---------- */}
       {type === 'video' && <div className={`stage ${pk ? 'pk' : ''}`}>{mainVideo}</div>}
-      {type === 'video' && pk && <PkOpponent pk={pk} roomId={id} opponent={opponent} />}
+      {type === 'video' && pk && <PkOpponent pk={pk} roomId={id} opponent={opponent} livekitUrl={info?.livekit_url} />}
       {type === 'audio' && (
         <div className="audio-stage" style={{ backgroundImage: `url(${info.room.cover || host?.avatar || ''})` }}>
           <div className="audio-host"><Avatar user={host} size={92} /><b>{host?.name}</b><small>Host</small></div>

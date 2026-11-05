@@ -25,6 +25,10 @@ export const config = {
     apiUrl: env('LIVEKIT_API_URL', env('LIVEKIT_URL', 'http://localhost:7880').replace(/^wss:/i, 'https:').replace(/^ws:/i, 'http:')),   // what the server calls internally
     apiKey: env('LIVEKIT_API_KEY', 'devkey'),
     apiSecret: env('LIVEKIT_API_SECRET', 'secret'),
+    // URL the deployed SFU posts lifecycle webhooks to (this server's
+    // /api/livekit/webhook). Seat publishing in production is fail-closed
+    // without it: the webhook is what force-reconciles stale publish grants.
+    webhookUrl: env('LIVEKIT_WEBHOOK_URL', ''),
   },
   turn: {
     urls: env('TURN_URLS', ''),                                 // e.g. turn:turn.yourdomain.com:3478?transport=udp,turn:turn.yourdomain.com:3478?transport=tcp

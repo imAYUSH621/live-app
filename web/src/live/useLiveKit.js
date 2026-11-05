@@ -4,6 +4,7 @@
 // WebRTC-mesh implementation is preserved in git history.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Room, RoomEvent, Track, createLocalTracks } from 'livekit-client';
+import { api } from '../api.js';
 
 function attachVideo(container, track, { mirror = false } = {}) {
   if (!container) return;
@@ -156,7 +157,45 @@ export const useAgora = useLiveKit;
 
 // PK opponent video is NOT yet implemented on web: it needs a second LiveKit
 // connection with the opponent token from pkInfo (token_a/token_b).
-export function useOpponentVideo(roomId, el) {
-    const [info, setInfo] = useState({ demo: false, live: false });
-    return info;
+/**
+ * PK opponent video: opens a SECOND LiveKit connection to the opponent room
+ * with the per-user subscribe-only token from GET /pk/:pkId (membership-checked
+ * server-side). Subscribes to video only. Disconnects when the PK ends.
+ */
+export function useOpponentVideo(pk, roomId, livekitUrl, el) {
+  const [info, setInfo] = useState({ live: false });
+  useEffect(() => {
+    if (!pk?.id || !livekitUrl || !el?.current) return undefined;
+    let cancelled = false;
+    const room = new Room({ adaptiveStream: true });
+    room.on(RoomEvent.TrackSubscribed, (track) => {
+      if (cancelled) return;
+      if (track.kind === Track.Kind.Video) {
+        attachVideo(el.current, track);
+        setInfo({ live: true });
+      }
+    });
+    room.on(RoomEvent.TrackUnsubscribed, (track) => {
+      if (track.kind === Track.Kind.Video) {
+        detachVideo(el.current, track);
+        setInfo({ live: false });
+      }
+    });
+    (async () => {
+      try {
+        const full = pk.token_a && pk.token_b ? pk : await api(`/pk/${pk.id}`);
+        if (cancelled) return;
+        const mineA = Number(full.room_a) === Number(roomId);
+        const token = mineA ? full.token_b : full.token_a;
+        await room.connect(livekitUrl, token);
+      } catch (e) {
+        if (!cancelled) setInfo({ live: false, error: e.message });
+      }
+    })();
+    return () => {
+      cancelled = true;
+      room.disconnect();
+    };
+  }, [pk?.id, pk?.token_a, pk?.token_b, roomId, livekitUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+  return info;
 }

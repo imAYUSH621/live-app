@@ -5,7 +5,7 @@ import { redis } from '../redis.js';
 import { userAuth } from '../lib/auth.js';
 import { need, int, str, notFound, forbidden, bad } from '../lib/util.js';
 import { uploader, fileUrl, uploadRoot } from '../lib/upload.js';
-import { lkToken, kickFromRoom, muteTrack } from '../lib/livekit.js';
+import { lkToken, kickFromRoom, muteTrack, AUDIO_ONLY } from '../lib/livekit.js';
 import { getSettings } from '../lib/settings.js';
 import { config } from '../config.js';
 import { changeCoins, changeDiamonds, addHostDiamondStat } from '../lib/wallet.js';
@@ -228,6 +228,8 @@ r.post('/live/:id/join', auth, async (req, res) => {
   const canPublish = isHost || (onSeat && !mySeat.muted);
   const token = await lkToken({
     room: lkRoomName(room.id), identity: req.user.id, name: req.user.name, publish: canPublish,
+    // audio (party) rooms: seated guests get a microphone, never a camera
+    sources: canPublish && !isHost && room.type === 'party' ? AUDIO_ONLY : undefined,
     ttl: canPublish && !isHost ? '15m' : '6h',
     metadata: { role: isHost ? 'host' : 'viewer' },
   });
@@ -374,6 +376,12 @@ r.post('/live/:id/seats/invite', auth, async (req, res) => {
 
 r.post('/live/:id/seats/take', auth, async (req, res) => {
   const room = await getLiveRoom(req.params.id);
+  // Fail closed: seat publishing relies on the SFU webhook to revoke stale
+  // publish grants. Without a configured webhook the feature stays off in
+  // production rather than shipping a known revocation gap.
+  if (config.nodeEnv === 'production' && !config.livekit.webhookUrl) {
+    return res.status(503).json({ error: 'Guest seats are temporarily unavailable', code: 'seats_disabled' });
+  }
   const invited = await redis.get(`seatinvite:${room.id}:${req.user.id}`);
   need(invited || room.type === 'party', 'You need an invite from the host');
   await redis.del(`seatinvite:${room.id}:${req.user.id}`);
@@ -498,7 +506,22 @@ r.post('/pk/:pkId/quit', auth, async (req, res) => {
   res.json({ ok: true });
 });
 
-r.get('/pk/:pkId', auth, async (req, res) => res.json(await pkInfo(int(req.params.pkId), req.user.id)));
+r.get('/pk/:pkId', auth, async (req, res) => {
+  const pkId = int(req.params.pkId);
+  const pkRow = await one('SELECT * FROM pk_battles WHERE id=$1', [pkId]);
+  need(pkRow && !['ended', 'declined'].includes(pkRow.status), 'PK not found', 404);
+  // Tokens to watch both PK rooms are issued only to active members of one of
+  // the two rooms: its host, someone seated, or a viewer who actually joined.
+  const uid = req.user.id;
+  const isHost = Number(pkRow.host_a) === uid || Number(pkRow.host_b) === uid;
+  const viewers = new Set([...(await rs.viewerIds(pkRow.room_a)), ...(await rs.viewerIds(pkRow.room_b))]);
+  const seats = [...(await rs.getSeats(pkRow.room_a)), ...(await rs.getSeats(pkRow.room_b))];
+  const seated = seats.some((st) => Number(st.user_id) === uid);
+  // REST join grants room access (ra: key) before the socket connects
+  const joined = (await redis.get(`ra:${pkRow.room_a}:${uid}`)) || (await redis.get(`ra:${pkRow.room_b}:${uid}`));
+  need(isHost || viewers.has(uid) || seated || !!joined, 'Join one of the PK rooms first', 403);
+  res.json(await pkInfo(pkId, uid));
+});
 
 // ---------- red packets (lucky bag) ----------
 r.post('/live/:id/redpacket', auth, async (req, res) => {

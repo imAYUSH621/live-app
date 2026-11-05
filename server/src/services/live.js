@@ -49,8 +49,8 @@ export async function pkInfo(pkId, viewerId) {
   };
   if (viewerId) {
     // token to watch BOTH sides (subscribe only) — the client opens a 2nd connection for the opponent
-    info.token_a = await lkToken({ room: info.livekit_a, identity: `${viewerId}`, name: 'viewer', publish: false });
-    info.token_b = await lkToken({ room: info.livekit_b, identity: `${viewerId}`, name: 'viewer', publish: false });
+    info.token_a = await lkToken({ room: info.livekit_a, identity: `${viewerId}`, name: 'viewer', publish: false, ttl: '15m' });
+    info.token_b = await lkToken({ room: info.livekit_b, identity: `${viewerId}`, name: 'viewer', publish: false, ttl: '15m' });
   }
   return info;
 }
@@ -166,6 +166,19 @@ export async function placeOnSeat(room, userId, seatNo) {
   await setPublish(lkRoomName(room.id), userId, true);
   await broadcastSeats(room.id, seats);
   return seats;
+}
+
+/**
+ * Is this user currently entitled to PUBLISH in this room?
+ * Host always is; a guest only while actively seated and not seat-muted.
+ * Used by the LiveKit webhook to reconcile joins made with stale tokens.
+ */
+export async function publishEntitlement(room, userId) {
+  if (!room || room.status !== 'live') return false;
+  if (Number(room.host_id) === Number(userId)) return true;
+  const seats = await rs.getSeats(room.id);
+  const seat = seats.find((s) => Number(s.user_id) === Number(userId));
+  return !!seat && !seat.muted;
 }
 
 export async function removeFromSeat(room, userId, { kick = false } = {}) {

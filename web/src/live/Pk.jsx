@@ -36,15 +36,14 @@ export function PkBar({ pk, roomId }) {
 }
 
 // Right half of the screen during a PK: the opponent's live video.
-export function PkOpponent({ pk, roomId, opponent }) {
+export function PkOpponent({ pk, roomId, opponent, livekitUrl }) {
   const oppEl = useRef(null);
-  const oppRoom = pk.room_a === roomId ? pk.room_b : pk.room_a;
-  const info = useOpponentVideo(oppRoom, oppEl);
+  const info = useOpponentVideo(pk, roomId, livekitUrl, oppEl);
   return (
     <div className="pk-opponent">
       <div ref={oppEl} className="stage-video-box" />
       {!info.live && (
-        <div className="stage-cover"><img src={opponent?.avatar || '/icon.svg'} alt="" /><span>{info.demo ? 'Demo mode: opponent video needs Agora' : 'Connecting…'}</span></div>
+        <div className="stage-cover"><img src={opponent?.avatar || '/icon.svg'} alt="" /><span>Connecting…</span></div>
       )}
       {opponent && <div className="pk-opp-name"><Avatar user={opponent} size={22} frame={false} />{opponent.name}</div>}
     </div>
