@@ -106,7 +106,7 @@ export default function Verify() {
         <div className="card center-text">
           <div className="big-check">✓</div>
           <h2>Host Verified</h2>
-          <p className="muted">Your identity and live photo are verified. You have full host privileges.</p>
+          <p className="muted">Your host application has been reviewed and approved. You can go live.</p>
           <button className="btn primary block" onClick={() => nav('/golive')}>{t('goLive')}</button>
           <button className="btn ghost block" onClick={() => nav('/host')}>{t('hostCentre')}</button>
         </div>
@@ -178,11 +178,11 @@ export default function Verify() {
           {selfie && (
             <div style={{ margin: '6px 0 12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <img src={URL.createObjectURL(selfie)} alt="Selfie Preview" style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '50%', border: '2px solid #22c55e' }} />
-              <span className="small muted">Live photo verified with camera ✓</span>
+              <span className="small muted">Live photo captured ✓</span>
             </div>
           )}
 
-          <p className="muted small">Your ID is viewed only by our trusted verification team and securely stored for regulatory compliance. Masking the first 8 digits of Aadhaar is fully supported.</p>
+          <p className="muted small">Your document and selfie are reviewed by our team before host access is approved. You can mask the first 8 digits of your Aadhaar number.</p>
           <button className="btn primary block" disabled={busy || !idFile || !selfie}>
             {busy ? 'Submitting…' : 'Submit for Verification'}
           </button>

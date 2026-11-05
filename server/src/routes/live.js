@@ -7,6 +7,7 @@ import { need, int, str, notFound, forbidden, bad } from '../lib/util.js';
 import { uploader, fileUrl, uploadRoot } from '../lib/upload.js';
 import { lkToken, kickFromRoom, muteTrack } from '../lib/livekit.js';
 import { getSettings } from '../lib/settings.js';
+import { config } from '../config.js';
 import { changeCoins, changeDiamonds, addHostDiamondStat } from '../lib/wallet.js';
 import { filterText, checkImage, autoReport } from '../lib/moderation.js';
 import { toRoom, toUser, toAdmins } from '../lib/io.js';
@@ -87,7 +88,10 @@ r.post('/live/start', auth, uploader(['image']).single('cover'), async (req, res
   if (type === 'multi') need(s.features.multi_guest, 'Multi-guest is disabled');
   if (type === 'party') need(s.features.party_rooms, 'Party rooms are disabled');
   if (type === 'game') need(s.features.game_live, 'Game live is disabled');
-  if (s.room.host_only_live) need(req.user.is_host, 'Only verified hosts can go live. Apply to become a host.');
+  // Production enforces host approval at the route, unconditionally: no settings
+  // row or env flag can waive it there. Non-prod follows the (opt-in gated) setting.
+  const hostOnlyLive = config.nodeEnv === 'production' ? true : s.room.host_only_live;
+  if (hostOnlyLive) need(req.user.is_host, 'Only verified hosts can go live. Apply to become a host.');
   if (req.user.muted_until && new Date(req.user.muted_until) > new Date()) throw forbidden('You are restricted from going live right now');
 
   // one live room per host

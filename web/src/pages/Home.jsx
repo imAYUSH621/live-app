@@ -80,7 +80,7 @@ export default function Home() {
         {CATEGORIES.map(([k, e]) => <button key={k} className={cat === k ? 'on' : ''} onClick={() => setCat(cat === k ? '' : k)}>{e} {t(`cat_${k}`)}</button>)}
       </div>
       <div className="filter-row">
-        <button className={near ? 'on' : ''} onClick={() => setNear(!near)}>📍 {t('nearMe')}{me?.country ? ` · ${me.country.code}` : ''}</button>
+        <button className={near ? 'on' : ''} onClick={() => setNear(!near)}>📍 {t('nearMe')}{me?.country ? ` · ${me.country.code || me.country}` : ''}</button>
         <button className={myLang ? 'on' : ''} onClick={() => setMyLang(!myLang)}>🗣 {t('myLang')}</button>
       </div>
       {!rooms ? <Spinner /> : rooms.length === 0 ? (
