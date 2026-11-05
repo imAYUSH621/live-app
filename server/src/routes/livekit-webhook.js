@@ -1,6 +1,7 @@
 import { WebhookReceiver } from 'livekit-server-sdk';
 import { config } from '../config.js';
 import { one } from '../db.js';
+import { redis } from '../redis.js';
 import { publishEntitlement } from '../services/live.js';
 import { kickFromRoom, TrackSource } from '../lib/livekit.js';
 
@@ -26,6 +27,11 @@ export async function livekitWebhook(req, res) {
   } catch {
     return res.status(400).json({ error: 'bad signature' });
   }
+  // Proof of delivery: a signature-verified event actually arrived from the
+  // SFU. Production seat publishing is gated on this, not on the env flag
+  // alone - a typo'd or unreachable webhook URL must not silently enable
+  // seat publishing without the reconciliation path being live.
+  await redis.set('lk:webhook:delivered', String(Date.now()));
   try {
     const m = /^live_(\d+)$/.exec(ev.room?.name || '');
     if (m && (ev.event === 'participant_joined' || ev.event === 'track_published')) {

@@ -83,7 +83,8 @@ app.get('/', (_req, res) => {
 app.get('/api/health', async (_req, res) => {
   const db = await pool.query('SELECT 1').then(() => true).catch(() => false);
   const rd = (await redis.ping().catch(() => '')) === 'PONG';
-  res.status(db && rd ? 200 : 503).json({ ok: db && rd, db, redis: rd, livekit: await livekitHealthy() });
+  const webhookDelivered = !!(await redis.get('lk:webhook:delivered').catch(() => null));
+  res.status(db && rd ? 200 : 503).json({ ok: db && rd, db, redis: rd, livekit: await livekitHealthy(), livekit_webhook: { configured: !!config.livekit.webhookUrl, delivered: webhookDelivered } });
 });
 
 // Maintenance mode: blocks app users (admin/agency/seller panels keep working)

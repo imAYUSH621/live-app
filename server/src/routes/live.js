@@ -377,10 +377,16 @@ r.post('/live/:id/seats/invite', auth, async (req, res) => {
 r.post('/live/:id/seats/take', auth, async (req, res) => {
   const room = await getLiveRoom(req.params.id);
   // Fail closed: seat publishing relies on the SFU webhook to revoke stale
-  // publish grants. Without a configured webhook the feature stays off in
-  // production rather than shipping a known revocation gap.
-  if (config.nodeEnv === 'production' && !config.livekit.webhookUrl) {
-    return res.status(503).json({ error: 'Guest seats are temporarily unavailable', code: 'seats_disabled' });
+  // publish grants. Production requires BOTH a configured webhook URL AND
+  // observed signature-verified delivery from the SFU (any room's lifecycle
+  // events prove the path; no seat needs to exist first). A typo'd or
+  // unreachable webhook URL therefore keeps seats off instead of silently
+  // shipping the revocation gap.
+  if (config.nodeEnv === 'production') {
+    const delivered = config.livekit.webhookUrl && (await redis.get('lk:webhook:delivered'));
+    if (!delivered) {
+      return res.status(503).json({ error: 'Guest seats are temporarily unavailable', code: 'seats_disabled' });
+    }
   }
   const invited = await redis.get(`seatinvite:${room.id}:${req.user.id}`);
   need(invited || room.type === 'party', 'You need an invite from the host');

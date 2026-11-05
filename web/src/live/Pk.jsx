@@ -8,7 +8,10 @@ export function useCountdown(endsAt) {
   const [left, setLeft] = useState(0);
   useEffect(() => {
     if (!endsAt) return undefined;
-    const tick = () => setLeft(Math.max(0, Math.round((Number(endsAt) - Date.now()) / 1000)));
+    // ends_at arrives as an ISO timestamp string from the API
+    const endMs = typeof endsAt === 'number' ? endsAt : Date.parse(endsAt);
+    if (!Number.isFinite(endMs)) return undefined;
+    const tick = () => setLeft(Math.max(0, Math.round((endMs - Date.now()) / 1000)));
     tick();
     const t = setInterval(tick, 500);
     return () => clearInterval(t);
