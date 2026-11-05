@@ -1,3 +1,4 @@
+import { config } from '../config.js';
 import { q, one } from '../db.js';
 import { redis } from '../redis.js';
 
@@ -88,6 +89,11 @@ export async function getSettings() {
   const rows = await q('SELECT key, value FROM settings');
   const merged = structuredClone(DEFAULT_SETTINGS);
   for (const r of rows) merged[r.key] = { ...(merged[r.key] || {}), ...r.value };
+  // Fail closed in production: a legacy saved row (host_only_live=false) must not
+  // reopen go-live to unverified users. Only an explicit env opt-in can disable it.
+  if (config.nodeEnv === 'production' && process.env.ALLOW_OPEN_LIVE !== 'true') {
+    merged.room.host_only_live = true;
+  }
   await redis.set(CACHE_KEY, JSON.stringify(merged), 'EX', 30);
   return merged;
 }
