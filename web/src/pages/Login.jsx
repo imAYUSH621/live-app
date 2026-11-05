@@ -226,6 +226,7 @@ export default function Login() {
                 </div>
               </div>
 
+              {import.meta.env.DEV && (<>
               {/* Demo 1-Click Instant Login */}
               <div className="demo-shortcuts" style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(255, 42, 109, 0.05)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255, 42, 109, 0.15)', marginTop: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -250,6 +251,7 @@ export default function Login() {
                   Or enter any mobile number. Demo OTP is <b>123456</b>.
                 </div>
               </div>
+              </>)}
 
               {/* Terms Checkbox */}
               <label className="mika-check-label">
