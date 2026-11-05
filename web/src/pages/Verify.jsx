@@ -31,7 +31,7 @@ export default function Verify() {
   const stream = useRef();
 
   useEffect(() => {
-    api('/kyc/me').then(setSt).catch(() => setSt({ verified: true, hostStatus: 'approved' }));
+    api('/kyc/me').then(setSt).catch(() => setSt({ verified: false, hostStatus: 'none', kyc: { status: 'none' } }));
   }, [toast]);
   useEffect(() => () => stream.current?.getTracks().forEach((x) => x.stop()), []);
 
