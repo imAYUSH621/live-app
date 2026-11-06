@@ -132,12 +132,12 @@ export default function Room() {
 
   // 3. host heartbeat keeps the room alive
   useEffect(() => {
-    if (!isHost) return undefined;
+    if (!isHost || summary) return undefined;
     const beat = () => socket?.emit('host:heartbeat', { roomId: Number(id) });
     beat();
     const t = setInterval(beat, 30000);
     return () => clearInterval(t);
-  }, [isHost, id]);
+  }, [isHost, id, summary]);
 
   // PK names when we joined mid-battle
   useEffect(() => {
@@ -202,7 +202,11 @@ export default function Room() {
   };
   const endLive = async () => {
     if (!window.confirm('End your live?')) return;
-    try { const r = await api(`/live/${id}/end`, { method: 'POST' }); setSummary(r.summary); }
+    try {
+      await api(`/live/${id}/end`, { method: 'POST' });
+      const s = await api(`/live/${id}/summary`);
+      setSummary({ durationSec: s.seconds ?? 0, peak: s.peak ?? 0, diamonds: s.diamonds ?? 0, newFans: 0 });
+    }
     catch (e) { toast(e.message, 'error'); }
   };
   const report = async (reason) => {
