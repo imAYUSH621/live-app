@@ -40,7 +40,7 @@ export default function Room() {
   const [following, setFollowing] = useState(false);
   const [ended, setEnded] = useState(null);
   const [summary, setSummary] = useState(null);
-  const [sheet, setSheet] = useState(null); // 'gift' | 'chat' | 'viewers' | 'top' | 'more' | 'pk' | 'report' | {user}
+  const [sheet, setSheet] = useState(null); // 'gift' | 'viewers' | 'top' | 'more' | 'pk' | 'report' | {user}
   const [text, setText] = useState('');
   const [beauty, setBeauty] = useState(true);
   const [effectsOn, setEffectsOn] = useState(true);
@@ -193,10 +193,12 @@ export default function Room() {
 
   const sendChat = (e) => {
     e?.preventDefault();
-    if (!text.trim()) return;
-    socket?.emit('room:chat', { roomId: Number(id), text }, (r) => r && r.ok === false && r.error && toast(r.error, 'error'));
-    setText('');
-    setSheet(null);
+    const msg = text.trim();
+    if (!msg || !socket) return; // keep the draft when there is no connection
+    socket.emit('room:chat', { roomId: Number(id), text: msg }, (r) => {
+      if (r && r.ok === false) { r.error && toast(r.error, 'error'); return; } // keep the draft on failure
+      setText('');
+    });
   };
   const like = () => { socket?.emit('room:like', { roomId: Number(id), n: 1 }); likeRef.current?.burst(1); };
   const follow = async () => {
@@ -345,7 +347,11 @@ export default function Room() {
 
       {/* ---------- bottom bar ---------- */}
       <div className="room-bottom">
-        <button className="say-hi" onClick={() => setSheet('chat')}>{t('sayHi')}</button>
+        <form className="say-hi composer" onSubmit={sendChat}>
+          <input dir="auto" maxLength={200} value={text} onChange={(e) => setText(e.target.value)}
+            placeholder={t('sayHi')} enterKeyHint="send" aria-label={t('sayHi')} />
+          {text.trim() ? <button className="composer-send" aria-label={t('send')}><Icon name="send" size={16} /></button> : null}
+        </form>
         {isHost ? (
           <>
             {type === 'video' && <button className="round-btn" onClick={() => setSheet('pk')} aria-label="PK"><Icon name="vs" /></button>}
@@ -366,12 +372,6 @@ export default function Room() {
 
       {/* ---------- sheets ---------- */}
       {!isHost && <GiftPanel open={sheet === 'gift'} onClose={() => setSheet(null)} roomId={id} host={info.room.host} seats={seats} />}
-      <Sheet open={sheet === 'chat'} onClose={() => setSheet(null)} className="chat-sheet">
-        <form className="chat-form" onSubmit={sendChat}>
-          <input autoFocus maxLength={200} dir="auto" value={text} onChange={(e) => setText(e.target.value)} placeholder={t('saySomething')} />
-          <button className="btn primary" aria-label="Send"><Icon name="send" size={18} /></button>
-        </form>
-      </Sheet>
       <Sheet open={sheet === 'viewers'} onClose={() => setSheet(null)} title={`${t('viewers')} (${viewers})`}>
         <div className="list">{viewerList.map((u) => (
           <div key={u.id} className="list-row" onClick={() => setSheet({ user: u })}><Avatar user={u} size={40} /><div className="grow"><b>{u.name}</b><LevelBadge level={u.level} vip={u.vip} /></div></div>

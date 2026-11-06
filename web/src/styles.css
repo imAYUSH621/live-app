@@ -2618,3 +2618,16 @@ img { display: block; }
 .gift-confirm-card h3 { margin: 0 0 10px; font-size: 17px; }
 .gift-confirm-card .gc-detail { font-weight: 700; margin: 0 0 6px; }
 .gift-confirm-card .gc-coins { color: var(--muted, #94a3b8); margin: 0; display: inline-flex; align-items: center; gap: 5px; }
+
+/* Persistent inline room composer: always visible, keeps focus, Enter sends. */
+.say-hi.composer { display: flex; align-items: center; gap: 6px; cursor: text; }
+.say-hi.composer input {
+  flex: 1; min-width: 0; background: transparent; border: 0; outline: none;
+  color: #fff; font-size: 13px; padding: 0;
+}
+.say-hi.composer input::placeholder { color: rgba(255, 255, 255, 0.65); }
+.composer-send {
+  flex: none; width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--pink, #ff2a6d); color: #fff;
+}
