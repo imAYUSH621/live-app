@@ -39,8 +39,8 @@ export default function HostCenter() {
             {isSuspended
               ? 'Your host account has been suspended by Admin. Please contact support to have your account reconsidered.'
               : isPending
-              ? 'Your ID and live photo verification is currently under review by our Admin team. You will be notified as soon as it is approved.'
-              : 'Every gift you receive in live streams becomes diamonds. Earnings are settled to your payout account every month. Verify your ID & live selfie to start.'}
+              ? 'Your ID and selfie verification is currently under manual review by our Admin team. You will be notified as soon as it is approved.'
+              : 'Every gift you receive in live streams becomes diamonds. Earnings are settled to your payout account every month. Verify your ID & selfie to start.'}
           </p>
           {isSuspended ? (
             <Link to="/safety" className="btn primary block">Support</Link>

@@ -136,7 +136,7 @@ export function BottomNav() {
   );
 }
 
-// Blue tick for hosts who passed ID + live selfie verification.
+// Blue tick for hosts whose ID + selfie verification passed manual admin review.
 export function VerifiedBadge({ user, size = 14 }) {
   if (!user?.verified) return null;
   return (
