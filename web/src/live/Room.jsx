@@ -264,7 +264,7 @@ export default function Room() {
           <img src={info.room.cover || host?.avatar || '/icon.svg'} alt="" />
           <div className="media-error">
             <b>{av.mediaError.title}</b>
-            <span>{av.mediaError.hint}</span>
+            <p className="me-hint">{av.mediaError.hint}</p>
             <div className="media-error-actions">
               <button className="btn" onClick={() => setMediaAttempt((a) => a + 1)}>Try again</button>
               {type === 'video' && !audioOnly && canFallbackToAudio(av.mediaError.kind) && (

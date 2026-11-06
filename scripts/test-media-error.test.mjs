@@ -82,6 +82,11 @@ const css = readFileSync(new URL('../web/src/styles.css', import.meta.url), 'utf
 const meRule = (css.match(/\.media-error \{[^}]*\}/) || [''])[0];
 check('media-error is absolutely centered overlay', /position:\s*absolute/.test(meRule) && /translate\(-50%,\s*-50%\)/.test(meRule));
 check('media-error sits above chat list (z6) and bottom bar (z8)', /z-index:\s*(2[0-9]|[3-9][0-9])/.test(meRule));
+// 7b2. Hint must not be a bare span inside .stage-cover (that rule absolutizes spans into detached pills)
+check('media-error hint uses p.me-hint, not a bare span', roomSrc.includes('<p className="me-hint">{av.mediaError.hint}</p>'));
+check('no bare <span> hint inside media-error JSX', !/<div className="media-error">[\s\S]{0,200}<span>\{av\.mediaError\.hint\}/.test(roomSrc));
+check('css styles .media-error .me-hint', /\.media-error \.me-hint/.test(css));
+
 // 7c. Avatar falls back to initials on image load failure (no broken-image icon)
 const ui = readFileSync(new URL('../web/src/components/ui.jsx', import.meta.url), 'utf8');
 check('Avatar has onError initials fallback', ui.includes('onError={() => setImgFailed(true)}') && ui.includes('imgFailed'));
