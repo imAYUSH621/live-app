@@ -252,22 +252,26 @@ export default function Room() {
     <>
       <div ref={videoEl} className={`stage-video-box ${isHost && beauty ? 'beauty' : ''}`} />
       {audioOnly && !isHost && type === 'video' && <div className="stage-cover audio-only"><img src={info.room.cover || host?.avatar || '/icon.svg'} alt="" /><span>{t('audioOnly')}</span></div>}
-      {!av.hostVideo && type === 'video' && !audioOnly && (
+      {!av.hostVideo && type === 'video' && !audioOnly && !av.mediaError && (
         <div className="stage-cover">
           <img src={info.room.cover || host?.avatar || '/icon.svg'} alt="" />
           {!isHost && <span>Connecting to live video...</span>}
-          {av.mediaError && isHost ? (
-            <div className="media-error">
-              <b>{av.mediaError.title}</b>
-              <span>{av.mediaError.hint}</span>
-              <div className="media-error-actions">
-                <button className="btn" onClick={() => setMediaAttempt((a) => a + 1)}>Try again</button>
-                {type === 'video' && !audioOnly && canFallbackToAudio(av.mediaError.kind) && (
-                  <button className="btn ghost" onClick={() => { setAudioOnly(true); setMediaAttempt((a) => a + 1); }}>{t('audioOnly')}</button>
-                )}
-              </div>
+          {av.error && !isHost ? <span className="err">{av.error}</span> : null}
+        </div>
+      )}
+      {av.mediaError && isHost && (
+        <div className="stage-cover">
+          <img src={info.room.cover || host?.avatar || '/icon.svg'} alt="" />
+          <div className="media-error">
+            <b>{av.mediaError.title}</b>
+            <span>{av.mediaError.hint}</span>
+            <div className="media-error-actions">
+              <button className="btn" onClick={() => setMediaAttempt((a) => a + 1)}>Try again</button>
+              {type === 'video' && !audioOnly && canFallbackToAudio(av.mediaError.kind) && (
+                <button className="btn ghost" onClick={() => { setAudioOnly(true); setMediaAttempt((a) => a + 1); }}>{t('audioOnly')}</button>
+              )}
             </div>
-          ) : av.error && !isHost ? <span className="err">{av.error}</span> : null}
+          </div>
         </div>
       )}
     </>
