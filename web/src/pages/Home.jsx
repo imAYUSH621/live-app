@@ -24,15 +24,18 @@ export default function Home() {
   const [results, setResults] = useState([]);
   const nav = useNavigate();
 
-  useEffect(() => { api('/banners').then(setBanners).catch(() => {}); }, []);
+  useEffect(() => { api('/home').then((r) => setBanners((r?.banners || []).map((b) => ({ ...b, image: b.image_url })))).catch(() => {}); }, []);
   useEffect(() => {
     let alive = true;
     setRooms(null);
-    const qs = new URLSearchParams({ tab: tab === 'party' ? 'audio' : tab });
-    if (cat) qs.set('category', cat);
-    if (near) qs.set('near', '1');
-    if (myLang) qs.set('lang', lang);
-    const load = () => api(`/live?${qs}`).then((r) => alive && setRooms(r)).catch(() => alive && setRooms([]));
+    const qs = new URLSearchParams({ tab: near ? 'country' : tab === 'party' ? 'audio' : tab });
+    const load = () => api(`/live/feed?${qs}`).then((r) => {
+      if (!alive) return;
+      let rows = Array.isArray(r) ? r : [];
+      if (cat) rows = rows.filter((x) => (x.tags || []).includes(cat));
+      if (myLang && lang) rows = rows.filter((x) => (x.tags || []).includes(lang));
+      setRooms(rows);
+    }).catch(() => alive && setRooms([]));
     load();
     const timer = setInterval(load, lowData ? 45000 : 15000);
     return () => { alive = false; clearInterval(timer); };
@@ -44,7 +47,7 @@ export default function Home() {
   }, [banners.length]);
   useEffect(() => {
     if (!q.trim()) return setResults([]);
-    const t = setTimeout(() => api(`/search?q=${encodeURIComponent(q)}`).then(setResults).catch(() => {}), 300);
+    const t = setTimeout(() => api(`/users/search?q=${encodeURIComponent(q)}`).then(setResults).catch(() => {}), 300);
     return () => clearTimeout(t);
   }, [q]);
 
@@ -61,14 +64,18 @@ export default function Home() {
           <input autoFocus placeholder={t('searchPh')} value={q} onChange={(e) => setQ(e.target.value)} />
           {results.map((u) => (
             <Link key={u.id} to={`/user/${u.id}`} className="search-row">
-              <img src={u.avatar || '/icon.svg'} alt="" /><span>{u.name}</span><small>ID {u.publicId}</small>
+              <img src={u.avatar_url || '/icon.svg'} alt="" /><span>{u.name}</span><small>ID {u.fancy_id || u.uid}</small>
             </Link>
           ))}
         </div>
       )}
       {banners.length > 0 && (
         <div className="banner" onClick={() => banners[bi]?.link && nav(banners[bi].link)}>
-          <img src={banners[bi]?.image} alt={banners[bi]?.title || ''} />
+          {banners[bi]?.image ? (
+            <img src={banners[bi].image} alt={banners[bi]?.title || ''} />
+          ) : (
+            <div className="banner-fallback" style={{ background: banners[bi]?.color || '#333' }}>{banners[bi]?.title}</div>
+          )}
           <div className="dots">{banners.map((b, i) => <i key={b.id} className={i === bi ? 'on' : ''} />)}</div>
         </div>
       )}
@@ -89,17 +96,17 @@ export default function Home() {
         <div className="room-grid">
           {rooms.map((r) => (
             <Link key={r.id} to={`/live/${r.id}`} className="room-card">
-              <img src={r.cover || r.host.avatar || '/icon.svg'} alt="" loading="lazy" />
+              <img src={r.cover_url || r.host_avatar || '/icon.svg'} alt="" loading="lazy" />
               <div className="rc-top">
                 <span className="live-dot">{(r.type === 'audio' || r.type === 'party') ? t('partyTag') : t('live')}</span>
-                {r.inPk && <span className="pk-tag">PK</span>}
-                <span className="cat-tag">{(CATEGORIES.find((c) => c[0] === r.category) || CATEGORIES[0])[1]} {t(`cat_${r.category}`)}</span>
+                {r.in_pk && <span className="pk-tag">PK</span>}
+                {(r.tags || []).length > 0 && <span className="cat-tag">{(CATEGORIES.find((c) => c[0] === r.tags[0]) || CATEGORIES[0])[1]} {t(`cat_${r.tags[0]}`)}</span>}
               </div>
-              <div className="rc-viewers"><Icon name="eye" size={13} /> {fmt(r.viewers)}</div>
+              <div className="rc-viewers"><Icon name="eye" size={13} /> {fmt(r.viewers || 0)}</div>
               <div className="rc-bottom">
-                <b>{r.host.name} <VerifiedBadge user={r.host} /></b>
+                <b>{r.host_name}</b>
                 <span>{r.title}</span>
-                <LevelBadge level={r.host.hostLevel} vip={r.host.vip} />
+                <LevelBadge level={r.host_level} vip={r.host_vip} />
               </div>
             </Link>
           ))}
