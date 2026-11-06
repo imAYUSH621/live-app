@@ -758,3 +758,23 @@ CREATE TABLE IF NOT EXISTS agency_invites (
   decided_at TIMESTAMPTZ
 );
 CREATE UNIQUE INDEX IF NOT EXISTS agency_invites_open ON agency_invites(agency_id, user_id) WHERE status = 'invited';
+
+-- Test-artifact delivery: admin-uploaded binaries reachable only through
+-- short-lived random-token links (hash stored, token never persisted).
+CREATE TABLE IF NOT EXISTS test_artifacts (
+  id BIGSERIAL PRIMARY KEY,
+  filename TEXT NOT NULL,
+  mime TEXT NOT NULL DEFAULT 'application/octet-stream',
+  size BIGINT NOT NULL,
+  sha256 TEXT NOT NULL,
+  storage_path TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS test_artifact_links (
+  id BIGSERIAL PRIMARY KEY,
+  artifact_id BIGINT NOT NULL REFERENCES test_artifacts(id),
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  downloads INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
