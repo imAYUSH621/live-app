@@ -143,6 +143,8 @@ jobs:
         env:
           CI: '1'
         run: |
+          mkdir -p ../ci-apks
+          cp android/app/build/outputs/apk/release/app-release-test-diag.apk ../ci-apks/
           rm -rf android
           npx expo prebuild --platform android --non-interactive
           if grep -rq "DiagnosticErrorActivity" android/; then echo "ERROR: diagnostic leftovers in plain build"; exit 1; fi
@@ -154,18 +156,15 @@ jobs:
       - name: Build plain release APK with embedded JS bundle
         working-directory: mobile/android
         run: ./gradlew assembleRelease --no-daemon
-      - name: Sign plain APK with the same TEST-ONLY debug key
+      - name: Sign plain APK with the existing TEST-ONLY debug key
         run: |
-          keytool -genkeypair -v -keystore test-only.keystore \
-            -alias testonly -storepass android -keypass android \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=TEST ONLY debug build, O=Unconfigured staging test, C=IN"
           BT=$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)
           APK=$(ls mobile/android/app/build/outputs/apk/release/*.apk | head -1)
           "$ANDROID_HOME/build-tools/$BT/apksigner" sign \
             --ks test-only.keystore --ks-pass pass:android --key-pass pass:android \
             --out mobile/android/app/build/outputs/apk/release/app-release-test-plain.apk \
             "$APK"
+          cp ci-apks/app-release-test-diag.apk mobile/android/app/build/outputs/apk/release/
       - uses: actions/upload-artifact@v4
         with:
           name: app-release-test-plain-x86_64-apk
@@ -179,7 +178,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
-          target: aosp_atd
+          target: google_apis
           arch: x86_64
           profile: pixel_6
           force-avd-creation: true
