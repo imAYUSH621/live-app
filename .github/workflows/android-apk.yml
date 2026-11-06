@@ -77,3 +77,113 @@ jobs:
         with:
           name: app-release-test-apk
           path: mobile/android/app/build/outputs/apk/release/app-release-test.apk
+  emulator-diagnostic:
+    # Branch-scoped diagnostic only: runs when this workflow is dispatched on
+    # the diagnostic-build branch; never on main pushes/dispatches.
+    if: github.ref == 'refs/heads/diagnostic-build'
+    runs-on: ubuntu-latest
+    env:
+      EXPO_PUBLIC_API_URL: 'https://liveapp-server-ksvy.onrender.com'
+      NODE_ENV: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Install app dependencies
+        working-directory: mobile
+        run: npm ci --legacy-peer-deps
+      - name: Generate android project (instrumented)
+        working-directory: mobile
+        env:
+          CI: '1'
+          LIVEAPP_DIAGNOSTIC: '1'
+        run: npx expo prebuild --platform android --non-interactive
+      - name: Restrict diagnostic build to x86_64 via Gradle abiFilters
+        working-directory: mobile
+        run: |
+          sed -i "s/\(versionName .*\)/\1\n        ndk { abiFilters 'x86_64' }/" android/app/build.gradle
+          grep -q "abiFilters 'x86_64'" android/app/build.gradle || { echo "ERROR: abiFilters not applied"; exit 1; }
+      - name: Build release APK with embedded JS bundle
+        working-directory: mobile/android
+        run: ./gradlew assembleRelease --no-daemon
+      - name: Sign with a TEST-ONLY debug key
+        run: |
+          keytool -genkeypair -v -keystore test-only.keystore \
+            -alias testonly -storepass android -keypass android \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=TEST ONLY debug build, O=Unconfigured staging test, C=IN"
+          BT=$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)
+          APK=$(ls mobile/android/app/build/outputs/apk/release/*.apk | head -1)
+          "$ANDROID_HOME/build-tools/$BT/apksigner" sign \
+            --ks test-only.keystore --ks-pass pass:android --key-pass pass:android \
+            --out mobile/android/app/build/outputs/apk/release/app-release-test-diag.apk \
+            "$APK"
+      - name: Verify single ABI and bundle
+        run: |
+          APK=mobile/android/app/build/outputs/apk/release/app-release-test-diag.apk
+          unzip -l "$APK" | grep -q 'assets/index.android.bundle' || { echo "ERROR: no embedded JS bundle"; exit 1; }
+          if unzip -l "$APK" | grep -E 'lib/(armeabi-v7a|arm64-v8a|x86)/'; then
+            echo "ERROR: non-x86_64 libs packaged"; exit 1
+          fi
+          unzip -l "$APK" | grep -c 'lib/x86_64/'
+          sha256sum "$APK"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-release-test-diag-x86_64-apk
+          path: mobile/android/app/build/outputs/apk/release/app-release-test-diag.apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Boot Android 15 emulator, install, launch, capture
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: aosp_atd
+          arch: x86_64
+          profile: pixel_6
+          force-avd-creation: true
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: |
+            APK=mobile/android/app/build/outputs/apk/release/app-release-test-diag.apk
+            adb install -r "$APK"
+            adb logcat -c
+            adb shell monkey -p com.liveapp.live -c android.intent.category.LAUNCHER 1
+            for i in $(seq 1 12); do
+              sleep 10
+              PID=$(adb shell pidof com.liveapp.live | tr -d '\r')
+              echo "poll $i pid=$PID"
+              if [ -n "$PID" ]; then
+                TOP=$(adb shell dumpsys activity activities | grep -m1 -i 'liveapp' || true)
+                echo "top: $TOP"
+                if echo "$TOP" | grep -qi 'DiagnosticErrorActivity'; then echo "DIAG_SCREEN_SHOWN"; break; fi
+              fi
+            done
+            echo "=== window/focus ==="
+            adb shell dumpsys window | grep -i -E 'mCurrentFocus|mFocusedApp' || true
+            echo "=== activity dump (liveapp) ==="
+            adb shell dumpsys activity activities | grep -i -B2 -A2 'liveapp' | head -40 || true
+            echo "=== process/crash state ==="
+            adb shell pidof com.liveapp.live || echo "PROCESS_NOT_RUNNING"
+            adb exec-out screencap -p > diag-emulator-screenshot.png
+            adb logcat -d -v threadtime > diag-emulator-logcat.txt
+            grep -a -E 'AndroidRuntime|FATAL|ReactNativeJS|ExpoModulesCore|hermes|libc|DEBUG|liveapp' diag-emulator-logcat.txt | tail -150 > diag-emulator-logcat-filtered.txt || true
+      - name: Upload emulator capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emulator-diagnostic-capture
+          path: |
+            diag-emulator-screenshot.png
+            diag-emulator-logcat.txt
+            diag-emulator-logcat-filtered.txt
+          if-no-files-found: warn
