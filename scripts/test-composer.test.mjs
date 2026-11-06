@@ -93,7 +93,7 @@ test('each draft carries a stable client id; retry reuses it; server dedupes aft
   assert.match(sock, /\{ roomId, text, cid \} = \{\}, ack/);
   const handler = sock.slice(sock.indexOf("socket.on('room:chat'"));
   assert.match(handler, /redis\.get\(cidKey\)\)+\s*return ack/);
-  assert.match(handler, /chatcid:\$\{uid\}:/, 'dedupe key is scoped to the authenticated user');
+  assert.match(handler, /chatcid:\$\{uid\}:\$\{roomId\}:/, 'dedupe key is scoped to the authenticated user and room');
   assert.match(handler, /PX', 30000/, 'dedupe window is a bounded 30 seconds');
   const broadcastIdx = handler.indexOf("toRoom(roomId, 'room:chat', msg)");
   const markIdx = handler.indexOf('redis.set(cidKey');

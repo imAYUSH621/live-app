@@ -1509,7 +1509,7 @@ img { display: block; }
 .stage.pk { right: 50%; top: 92px; bottom: auto; height: 52%; }
 .pk-opponent { left: 50%; top: 92px; bottom: auto; height: 52%; border-left: 2px solid #000; }
 .stage-video-box { position: absolute; inset: 0; }
-.stage-video-box video, .stage-video { width: 100% !important; height: 100% !important; object-fit: cover; }
+.stage-video-box video, .stage-video { width: 100% !important; height: 100% !important; object-fit: contain; background: #000; }
 .mirror { transform: scaleX(-1); }
 .stage-video-box.beauty { filter: brightness(1.06) contrast(0.96) saturate(1.08); }
 
