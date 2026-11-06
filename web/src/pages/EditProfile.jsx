@@ -4,15 +4,14 @@ import { api } from '../api.js';
 import { useApp } from '../store.jsx';
 import { Avatar, Header } from '../components/ui.jsx';
 import { UI_LANGS, useT } from '../i18n.js';
-import { flag } from './Login.jsx';
+import { DEFAULT_COUNTRIES, flag } from './Login.jsx';
 import { resetGiftCache } from '../live/GiftPanel.jsx';
 
 export default function EditProfile() {
   const { me, refresh, toast, setLang, lang } = useApp();
   const t = useT();
   const [f, setF] = useState({ name: '', gender: '', dob: '', bio: '', language: 'en', country: 'IN' });
-  const [countries, setCountries] = useState([]);
-  useEffect(() => { api('/countries').then(setCountries).catch(() => {}); }, []);
+  const [countries] = useState(DEFAULT_COUNTRIES);
   const [busy, setBusy] = useState(false);
   const [params] = useSearchParams();
   const nav = useNavigate();
@@ -25,7 +24,7 @@ export default function EditProfile() {
     e.preventDefault();
     setBusy(true);
     try {
-      await api('/me', { method: 'PUT', body: f });
+      await api('/me', { method: 'PATCH', body: f });
       setLang(f.language);
       resetGiftCache(); // prices and local gifts depend on the country
       await refresh();

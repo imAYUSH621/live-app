@@ -6,7 +6,7 @@ import AnimPlayer from '../components/AnimPlayer.jsx';
 import { Icon } from '../components/ui.jsx';
 
 // Initial global countries with codes and dial codes for instant search & zero-lag UX
-const DEFAULT_COUNTRIES = [
+export const DEFAULT_COUNTRIES = [
   { code: 'IN', name: 'India', dial: '91', language: 'en' },
   { code: 'AE', name: 'United Arab Emirates', dial: '971', language: 'en' },
   { code: 'SA', name: 'Saudi Arabia', dial: '966', language: 'en' },
