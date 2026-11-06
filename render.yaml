@@ -11,10 +11,11 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      # Staging-only: enables the PR #15/#16 private test-artifact download
-      # route (default off; production deploys must leave this unset).
+      # PR #15/#16 private test-artifact route. sync:false: the public repo
+      # must not carry the enable value. Code default is OFF; each environment
+      # opts in explicitly in its own Render dashboard (staging only).
       - key: TEST_ARTIFACTS_ENABLED
-        value: 'true'
+        sync: false
       - key: PORT
         value: 10000
       - key: DATABASE_URL
