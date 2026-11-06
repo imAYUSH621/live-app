@@ -9,16 +9,37 @@ const money = (o) => (o.currency && o.currency !== 'INR' ? `${o.currency} ${Numb
 export default function Safety() {
   const { toast, lowData, setLowData } = useApp();
   const t = useT();
-  const [orders, setOrders] = useState([]);
+  const [safety, setSafety] = useState(null);
+  const [limit, setLimit] = useState('');
   const [tickets, setTickets] = useState([]);
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
   const load = () => {
-    api('/recharge/orders').then(setOrders).catch(() => {});
+    api('/safety').then((d) => { setSafety(d); setLimit(d.dailyLimit ? String(d.dailyLimit) : ''); }).catch(() => {});
     api('/support').then(setTickets).catch(() => {});
   };
   useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const saveLimit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const r = await api('/safety/limit', { method: 'PUT', body: { coins: Number(limit) || 0 } });
+      toast(r.pendingLimit ? `New limit of ${fmt(r.pendingLimit)} coins applies after the waiting period` : r.dailyLimit ? `Daily gift limit set to ${fmt(r.dailyLimit)} coins` : 'Daily limit removed');
+      load();
+    } catch (err) { toast(err.message, 'error'); }
+    setBusy(false);
+  };
+
+  const refund = async (o) => {
+    if (!window.confirm(`Ask for a refund of order #${o.id} (${fmt(o.coins)} coins)? The coins are held while the team reviews it.`)) return;
+    try {
+      await api(`/recharge/${o.id}/refund`, { method: 'POST', body: {} });
+      toast('Refund requested. The coins are held until it is reviewed.');
+      load();
+    } catch (err) { toast(err.message, 'error'); }
+  };
 
   const sendTicket = async (e) => {
     e.preventDefault();
@@ -35,14 +56,36 @@ export default function Safety() {
   return (
     <div className="page">
       <Header title={t('safety')} />
+
+      <section className="card">
+        <h3>Daily gift limit</h3>
+        {safety && (
+          <>
+            <p className="muted small">
+              {safety.dailyLimit > 0
+                ? <>Limit <b>{fmt(safety.dailyLimit)}</b> coins/day · used <b>{fmt(safety.spentToday)}</b> today.</>
+                : <>No daily limit set · used <b>{fmt(safety.spentToday)}</b> coins today.</>}
+              {safety.pendingLimit != null && <> A higher limit of <b>{fmt(safety.pendingLimit)}</b> applies {safety.pendingAt ? new Date(safety.pendingAt).toLocaleString('en-IN') : 'after the waiting period'}.</>}
+            </p>
+            <form className="row gap" onSubmit={saveLimit}>
+              <input className="input grow" type="number" min="0" placeholder="Coins per day (0 = no limit)" value={limit} onChange={(e) => setLimit(e.target.value)} />
+              <button className="btn primary" disabled={busy}>Save</button>
+            </form>
+            <p className="muted small">Lowering applies right away. Raising applies after a waiting period.</p>
+          </>
+        )}
+      </section>
+
       <section className="card">
         <h3>{t('refunds')}</h3>
-        <p className="muted small">Recharges are handled by the payment provider. If a payment failed or was made by mistake, send a support request below with the order number.</p>
-        {orders.length === 0 ? <p className="muted">No recharges yet.</p> : (
-          <div className="list compact">{orders.map((o) => (
+        <p className="muted small">Made a recharge by mistake? You can ask for a refund within {safety?.refundWindowHours ?? 72} hours if the coins are still in your wallet.</p>
+        {!safety || safety.orders.length === 0 ? <p className="muted">No recent recharges.</p> : (
+          <div className="list compact">{safety.orders.map((o) => (
             <div key={o.id} className="list-row">
-              <div className="grow"><b>{money(o)}</b> · <CoinIcon size={12} /> {fmt(o.coins)}<small>Order #{o.id} · {o.gateway || 'seller'} · {new Date(o.created_at).toLocaleString('en-IN')}</small></div>
-              <span className={`status ${o.status}`}>{o.status}</span>
+              <div className="grow"><b>{money(o)}</b> · <CoinIcon size={12} /> {fmt(o.coins)}<small>Order #{o.id} · {new Date(o.at).toLocaleString('en-IN')}</small></div>
+              {o.refundStatus ? <span className={`status ${o.refundStatus}`}>refund {o.refundStatus}</span>
+                : o.canRefund ? <button className="btn ghost small" onClick={() => refund(o)}>Refund</button>
+                : <span className={`status ${o.status}`}>{o.status}</span>}
             </div>
           ))}</div>
         )}

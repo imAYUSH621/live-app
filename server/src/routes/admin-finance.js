@@ -49,14 +49,16 @@ r.post('/admin/orders/:id/refund', adminAuth('finance'), async (req, res) => {
   const o = await one('SELECT * FROM recharge_orders WHERE id=$1', [int(req.params.id)]);
   need(o && o.status === 'paid', 'Only paid orders can be refunded');
   await tx(async (c) => {
-    await c.q(`UPDATE recharge_orders SET status='refunded' WHERE id=$1`, [o.id]);
+    // Guard the transition inside the transaction: if a user refund request (or another
+    // admin refund) moved the order out of 'paid' since we read it, fail instead of double-debiting.
+    const moved = await c.one(`UPDATE recharge_orders SET status='refunded' WHERE id=$1 AND status='paid' RETURNING id`, [o.id]);
+    need(moved, 'Order already refunded or a refund request is in progress');
     // take back as many of those coins as are left; freeze if already spent
     const u = await c.one('SELECT coins FROM users WHERE id=$1 FOR UPDATE', [o.user_id]);
     const take = Math.min(Number(u.coins), Number(o.coins));
     if (take > 0) await changeCoins(c, o.user_id, -take, 'refund', { refType: 'order', refId: o.id, allowFrozen: true });
     if (take < o.coins) await c.q('UPDATE users SET wallet_frozen=true WHERE id=$1', [o.user_id]);
   });
-  await q("UPDATE refund_requests SET status='approved', decided_at=now(), decided_by=$2 WHERE order_id=$1 AND status='open'", [o.id, req.admin.id]);
   await audit(req, 'order.refund', 'order', o.id);
   res.json({ ok: true });
 });

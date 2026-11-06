@@ -25,6 +25,8 @@ export async function spentToday(c, userId) {
 }
 
 export async function checkSpend(c, userId, coins) {
+  // Lock the user row so concurrent gift sends serialize on the limit check (prevents spend races).
+  await c.one('SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]);
   const limit = await effectiveLimit(c, userId);
   if (limit > 0) {
     const spent = await spentToday(c, userId);

@@ -115,6 +115,9 @@ r.get('/host/earnings', auth, async (req, res) => {
 
 r.post('/host/withdraw', auth, async (req, res) => {
   const s = await getSettings();
+  if (!s.features.host_withdrawals) {
+    throw bad('Withdrawals are temporarily unavailable while payout rules are finalized', 'withdrawals_paused');
+  }
   const h = await one('SELECT status FROM hosts WHERE user_id=$1', [req.user.id]);
   need(h && h.status === 'approved', 'Only approved hosts can withdraw');
   const diamonds = Math.floor(Number(req.body.diamonds));
@@ -168,6 +171,19 @@ r.post('/agency/invites/:id/:action', auth, async (req, res) => {
     await q(`UPDATE agency_invites SET status='declined', decided_at=now() WHERE id=$1`, [inv.id]);
   }
   res.json({ ok: true });
+});
+
+// Join an agency by its code (approved hosts not currently in one).
+r.post('/agency/join', auth, async (req, res) => {
+  const h = await one(`SELECT * FROM hosts WHERE user_id=$1 AND status='approved'`, [req.user.id]);
+  need(h, 'Only approved hosts can join an agency');
+  need(!h.agency_id, 'You are already in an agency. Leave it first (allowed 30 days after joining).');
+  const code = str(req.body.code, 20).toUpperCase();
+  const a = await one(`SELECT * FROM agencies WHERE code=$1 AND status='active'`, [code]);
+  if (!a) throw notFound('Agency code not found');
+  await q('UPDATE hosts SET agency_id=$2, agency_joined_at=now() WHERE user_id=$1', [req.user.id, a.id]);
+  if (a.owner_user_id) toUser(a.owner_user_id, 'notify', { type: 'agency', text: `${req.user.name} joined your agency` });
+  res.json({ ok: true, agency: { id: a.id, name: a.name } });
 });
 
 export default r;
