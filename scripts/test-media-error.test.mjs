@@ -75,6 +75,7 @@ check('Room audio fallback is an explicit button, not silent', room.includes('ca
 const hook = readFileSync(new URL('../web/src/live/useLiveKit.js', import.meta.url), 'utf8');
 check('hook maps errors via describeMediaError', hook.includes('describeMediaError(e, { audioOnly })'));
 check('hook retry attempt is an effect dep', hook.includes('audioOnly, attempt]'));
+check('host media-error box renders regardless of audioOnly (not inside !audioOnly cover)', /\{av\.mediaError && isHost && \([\s\S]*?className="media-error"/.test(roomSrc) && !/!audioOnly && \([\s\S]{0,400}media-error/.test(roomSrc));
 
 // 8. Mobile parity: native setup failure shows the same friendly mapping
 const mobile = readFileSync(new URL('../mobile/app/live/[id].tsx', import.meta.url), 'utf8');
