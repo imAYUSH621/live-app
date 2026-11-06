@@ -188,7 +188,7 @@ export default function Login() {
           {step === 'phone' ? (
             <form onSubmit={mode === 'email' ? emailAuth : send} className="auth-form-content">
               <div className="auth-card-header">
-                <h2>Welcome to Omnistu Live</h2>
+                <h2>Welcome to {config.appName || 'Omnistu Live'}</h2>
                 <p>{mode === 'email' ? (isRegister ? 'Create your account with email' : 'Sign in with your email') : 'Login or create an account with your phone number'}</p>
               </div>
 
@@ -246,7 +246,7 @@ export default function Login() {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'center', margin: '4px 0 8px' }}>
                     <button type="button" className="edit-num-link" onClick={() => setIsRegister(!isRegister)}>
-                      {isRegister ? 'Already have an account? Sign in' : 'New to Omnistu Live? Create an account'}
+                      {isRegister ? 'Already have an account? Sign in' : `New to ${config.appName || 'Omnistu Live'}? Create an account`}
                     </button>
                   </div>
                 </>
