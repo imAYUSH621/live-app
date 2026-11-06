@@ -1496,7 +1496,10 @@ img { display: block; }
   margin: 0 auto;
   background: #000;
   overflow: hidden;
-  z-index: 30;
+  /* Full-screen takeover: must sit above .desktop-top-header (z-index 1000).
+     At z-index 30 the header covered the room's top 64px on desktop web,
+     making the host's end-live (Close) control unreachable by click. */
+  z-index: 1100;
   user-select: none;
 }
 .room.center { display: grid; place-items: center; text-align: center; }
