@@ -22,3 +22,7 @@ check('verify copy says manual review', /reviews every submission manually/.test
 
 console.log(failures ? `\n${failures} FAILURES` : '\nALL PASS');
 process.exit(failures ? 1 : 0);
+
+const verifySrc = readFileSync(`${root}/web/src/pages/Verify.jsx`, 'utf8');
+check('verify copy has no money promise while payments are off', !/real money/i.test(verifySrc));
+check('verify page warns against real IDs on the test deployment', /TEST DEPLOYMENT/.test(verifySrc) && /do not upload real IDs/.test(verifySrc));
