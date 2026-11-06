@@ -213,13 +213,14 @@ r.get('/admin/ledger', adminAuth('finance'), async (req, res) => {
 r.get('/admin/finance/summary', adminAuth('finance'), async (req, res) => {
   const from = req.query.from || new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
   const to = req.query.to || new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+  // `to` is an inclusive calendar date from the UI; the SQL compares against the next day.
   const byType = await q(
-    `SELECT currency, type, sum(amount)::bigint AS amount, count(*)::int AS n FROM ledger WHERE created_at >= $1 AND created_at < $2 GROUP BY 1,2 ORDER BY 1,2`, [from, to]);
-  const revenue = await q(`SELECT gateway, currency, sum(amount)::numeric AS amount, count(*)::int AS orders FROM recharge_orders WHERE status='paid' AND paid_at >= $1 AND paid_at < $2 GROUP BY 1,2`, [from, to]);
+    `SELECT currency, type, sum(amount)::bigint AS amount, count(*)::int AS n FROM ledger WHERE created_at >= $1::date AND created_at < $2::date + 1 GROUP BY 1,2 ORDER BY 1,2`, [from, to]);
+  const revenue = await q(`SELECT gateway, currency, sum(amount)::numeric AS amount, count(*)::int AS orders FROM recharge_orders WHERE status='paid' AND paid_at >= $1::date AND paid_at < $2::date + 1 GROUP BY 1,2`, [from, to]);
   const liability = await one(`SELECT sum(coins)::bigint AS coins, sum(diamonds)::bigint AS diamonds FROM users WHERE status<>'deleted'`);
   const sellerFloat = await one(`SELECT coalesce(sum(balance),0)::bigint AS coins FROM coin_sellers`);
-  const salaries = await q(`SELECT status, sum(total)::numeric AS amount, count(*)::int AS n FROM host_settlements WHERE created_at >= $1 AND created_at < $2 GROUP BY status`, [from, to]);
-  const commissions = await q(`SELECT status, sum(total)::numeric AS amount FROM agency_commissions WHERE created_at >= $1 AND created_at < $2 GROUP BY status`, [from, to]);
+  const salaries = await q(`SELECT status, sum(total)::numeric AS amount, count(*)::int AS n FROM host_settlements WHERE created_at >= $1::date AND created_at < $2::date + 1 GROUP BY status`, [from, to]);
+  const commissions = await q(`SELECT status, sum(total)::numeric AS amount FROM agency_commissions WHERE created_at >= $1::date AND created_at < $2::date + 1 GROUP BY status`, [from, to]);
   const s = await getSettings();
   res.json({ from, to, by_type: byType, revenue, liability: { ...liability, seller_coins: sellerFloat.coins, diamonds_value: Math.round((Number(liability.diamonds || 0) / s.economy.diamonds_per_unit) * 100) / 100 }, salaries, commissions, currency: s.economy.currency });
 });
