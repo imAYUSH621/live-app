@@ -2631,6 +2631,14 @@ img { display: block; }
   display: grid; place-items: center;
   background: var(--pink, #ff2a6d); color: #fff;
 }
+.composer-send:disabled {
+  background: rgba(255, 255, 255, 0.16); color: rgba(255, 255, 255, 0.75);
+  cursor: default;
+}
+.chat-empty { color: rgba(255, 255, 255, 0.55); font-size: 13px; text-align: center; padding: 16px 12px; }
+.chat-msg span { overflow-wrap: anywhere; }
+.ra-item { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; }
+.ra-label { display: none; font-size: 10px; line-height: 1; color: rgba(255, 255, 255, 0.78); }
 
 /* Desktop room: three regions - chat rail (feed + composer), video stage, action rail.
    Scoped to non-PK rooms; PK keeps the legacy overlay layout. */
@@ -2657,7 +2665,13 @@ img { display: block; }
     mask-image: none;
     justify-content: flex-end;
   }
-  .room:not(.has-pk) .chat-msg { font-size: 14px; line-height: 1.45; }
+  .room:not(.has-pk) .chat-msg {
+    font-size: 14px; line-height: 1.45;
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: 10px; padding: 7px 10px;
+  }
+  .room:not(.has-pk) .chat-list { gap: 6px; padding: 12px; }
+  .room:not(.has-pk) .room-actions .ra-label { display: block; }
   .room:not(.has-pk) .chat-notice { font-size: 12.5px; }
   .room:not(.has-pk) .room-bottom { display: contents; }
   .room:not(.has-pk) .say-hi.composer {
