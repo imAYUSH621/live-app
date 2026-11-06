@@ -46,3 +46,7 @@ check('room info response carries active_red_packet too', live.includes('active_
 check('web adopts the server-provided active bag once', room.includes('info?.room?.active_red_packet') && room.includes('bagFromInfo'));
 check('send sheet text is dark-on-light readable', css.includes('.bag-form { display: flex; flex-direction: column; gap: 12px; color: #111728; }') && css.includes('.bag-form .bag-confirm { color: #111728; font-weight: 600;'));
 check('bag card clears the right action rail', css.includes('right: 76px; bottom: 148px;'));
+check('bag inputs render light text on dark field', css.includes('.bag-form input { padding: 10px; border-radius: 10px; border: 1px solid #2a2a33; background: #1c1c22; color: #f4f6fb;'));
+
+console.log(failures ? `${failures} FAILED` : 'ALL PASS');
+process.exit(failures ? 1 : 0);

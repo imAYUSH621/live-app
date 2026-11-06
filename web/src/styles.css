@@ -2701,4 +2701,5 @@ img { display: block; }
 .bag-form .muted { color: #5a6478; }
 .bag-form .bag-confirm { color: #111728; font-weight: 600; margin: 0; }
 .bag-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
-.bag-form input { padding: 10px; border-radius: 10px; border: 1px solid var(--line, #333); background: var(--input-bg, #1c1c22); color: inherit; }
+.bag-form input { padding: 10px; border-radius: 10px; border: 1px solid #2a2a33; background: #1c1c22; color: #f4f6fb; caret-color: #f4f6fb; }
+.bag-form input::placeholder { color: #8a92a6; }
