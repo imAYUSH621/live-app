@@ -6,6 +6,21 @@ class MemoryRedis {
     this.store = new Map();
     this.ttls = new Map();
     this.status = 'ready';
+    // Bounded memory: lazy expiry only reclaims keys that are read again.
+    // Keys never re-accessed (unique chat dedupe ids, one-off locks) would
+    // live forever, so sweep expired entries on an interval too.
+    this._sweeper = setInterval(() => this._sweep(), 30000);
+    this._sweeper.unref?.();
+  }
+
+  _sweep() {
+    const now = Date.now();
+    for (const [key, exp] of this.ttls) {
+      if (exp && now > exp) {
+        this.store.delete(key);
+        this.ttls.delete(key);
+      }
+    }
   }
 
   _isExpired(key) {
@@ -351,6 +366,8 @@ function createClient() {
     return new MemoryRedis();
   }
 }
+
+export { MemoryRedis };
 
 export const redis = createClient();
 
