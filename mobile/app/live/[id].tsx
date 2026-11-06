@@ -10,6 +10,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { liveKitService } from '../../src/realtime/livekit';
+import { describeMediaError } from '../../src/realtime/mediaError';
 import { getSocket } from '../../src/realtime/socket';
 import { liveApi } from '../../src/api/endpoints';
 import { useLiveRoomStore } from '../../src/stores/liveRoomStore';
@@ -231,7 +232,8 @@ export default function LiveRoomScreen() {
         }
       } catch (err: any) {
         console.error('[LiveRoom] Setup error:', err);
-        setToastMessage(err?.message || 'Failed to connect to live room');
+        const media = describeMediaError(err);
+        setToastMessage(`${media.title}. ${media.hint}`);
       }
     };
 
