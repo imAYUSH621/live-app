@@ -18,7 +18,7 @@ const giftTier = (price) => (price < 100 ? 'small' : price < 1000 ? 'medium' : p
 
 export default function Room() {
   const { id } = useParams();
-  const { socket, me, toast, lang, lowData } = useApp();
+  const { socket, me, toast, lang, lowData, config } = useApp();
   const t = useT();
   const [translateOn, setTranslateOn] = useState(false);
   const [tr, setTr] = useState({}); // message id -> translated text
@@ -36,6 +36,8 @@ export default function Room() {
   const [pkPeople, setPkPeople] = useState(null);
   const [pkResult, setPkResult] = useState(null);
   const [pkInvite, setPkInvite] = useState(null);
+  const [bag, setBag] = useState(null);
+  const [bagNow, setBagNow] = useState(Date.now());
   const [diamonds, setDiamonds] = useState(0);
   const [following, setFollowing] = useState(false);
   const [ended, setEnded] = useState(null);
@@ -116,6 +118,7 @@ export default function Room() {
       },
       'room:likes': () => likeRef.current?.burst(1),
       'seat:update': (pl) => setSeats((pl.seats || []).map(normSeat)),
+      'room:redpacket': (p) => setBag(p),
       'pk:start': (p) => { setPk(p); setPkPeople({ a: p.host_a, b: p.host_b }); setPkResult(null); },
       'pk:score': (p) => setPk((cur) => (cur ? { ...cur, ...p } : p)),
       'pk:end': (p) => { setPk(null); setPkResult(p); },
@@ -242,6 +245,21 @@ export default function Room() {
   const share = async () => {
     const url = window.location.href;
     try { if (navigator.share) await navigator.share({ title: info.room.title, url }); else { await navigator.clipboard.writeText(url); toast('Link copied'); } } catch { /* cancelled */ }
+  };
+  useEffect(() => {
+    if (!bag) return undefined;
+    const iv = setInterval(() => setBagNow(Date.now()), 1000);
+    if (Date.parse(bag.expires_at) <= Date.now()) setBag(null);
+    return () => clearInterval(iv);
+  }, [bag]);
+  const bagCfg = config?.red_packet || {};
+  const dropBag = async (coins, parts) => {
+    try { await api(`/live/${id}/redpacket`, { method: 'POST', body: { coins, parts } }); toast(t('bagSent')); setSheet(null); }
+    catch (e) { toast(e.message, 'error'); }
+  };
+  const grabBag = async () => {
+    try { const r = await api(`/redpacket/${bag.id}/grab`, { method: 'POST' }); toast(`+${fmt(r.amount)} 🪙`); setBag(null); }
+    catch (e) { toast(e.message, 'error'); if (/gone|already/i.test(e.message)) setBag(null); }
   };
   const takeSeat = (no) => api(`/live/${id}/seats/take`, { method: 'POST', body: { seat: no } }).catch((e) => toast(e.message, 'error'));
   const leaveSeat = () => api(`/live/${id}/seats/leave`, { method: 'POST' }).catch(() => { });
@@ -383,6 +401,7 @@ export default function Room() {
             {type === 'video' && <span className="ra-item"><button className={`round-btn ${beauty ? 'on' : ''}`} onClick={() => setBeauty(!beauty)} aria-label="Beauty"><Icon name="beauty" /></button><span className="ra-label">{t('beauty')}</span></span>}
             {type === 'video' && <span className="ra-item"><button className="round-btn" onClick={av.flipCamera} aria-label="Flip camera"><Icon name="flip" /></button><span className="ra-label">{t('flip')}</span></span>}
             <span className="ra-item"><button className={`round-btn ${av.micOn ? '' : 'off'}`} onClick={av.toggleMic} aria-label="Mic"><Icon name={av.micOn ? 'mic' : 'micOff'} /></button><span className="ra-label">{t('mic')}</span></span>
+            {config?.features?.red_packet && <span className="ra-item"><button className="round-btn bag" onClick={() => setSheet('bag')} aria-label="Lucky bag"><span className="ra-emoji">🧧</span></button><span className="ra-label">{t('luckyBag')}</span></span>}
           </>
         ) : (
           <>
@@ -391,6 +410,7 @@ export default function Room() {
             <span className="ra-item"><button className="round-btn" onClick={() => setSheet('more')} aria-label="More"><Icon name="more" stroke={3} /></button><span className="ra-label">{t('more')}</span></span>
             <span className="ra-item"><button className="round-btn heart" onClick={like} aria-label="Like"><Icon name="heart" fill /></button><span className="ra-label">{t('like')}</span></span>
             <span className="ra-item"><button className="round-btn gift" onClick={() => setSheet('gift')} aria-label="Gifts"><Icon name="gift" /></button><span className="ra-label">{t('gifts')}</span></span>
+            {config?.features?.red_packet && <span className="ra-item"><button className="round-btn bag" onClick={() => setSheet('bag')} aria-label="Lucky bag"><span className="ra-emoji">🧧</span></button><span className="ra-label">{t('luckyBag')}</span></span>}
           </>
         )}
         </div>
@@ -398,6 +418,21 @@ export default function Room() {
 
       {/* ---------- sheets ---------- */}
       {!isHost && <GiftPanel open={sheet === 'gift'} onClose={() => setSheet(null)} roomId={id} host={info.room.host} seats={seats} />}
+      <Sheet open={sheet === 'bag'} onClose={() => setSheet(null)} title={t('luckyBag')}>
+        <BagForm cfg={bagCfg} balance={me?.coins} onDrop={dropBag} t={t} />
+      </Sheet>
+      {bag && (
+        <div className="bag-card" role="button" onClick={() => { if (bagNow >= Date.parse(bag.opens_at)) grabBag(); }}>
+          <span className="bag-emoji">🧧</span>
+          <div className="grow">
+            <b>{bag.from?.name}</b>
+            <span className="muted">{fmt(bag.coins)} 🪙 · {bag.parts} {t('bagParts').toLowerCase()}</span>
+          </div>
+          {bagNow >= Date.parse(bag.opens_at)
+            ? <button className="btn primary sm">{t('bagGrab')}</button>
+            : <span className="bag-count">{Math.max(0, Math.ceil((Date.parse(bag.opens_at) - bagNow) / 1000))}s</span>}
+        </div>
+      )}
       <Sheet open={sheet === 'viewers'} onClose={() => setSheet(null)} title={`${t('viewers')} (${viewers})`}>
         <div className="list">{viewerList.map((u) => (
           <div key={u.id} className="list-row" onClick={() => setSheet({ user: u })}><Avatar user={u} size={40} /><div className="grow"><b>{u.name}</b><LevelBadge level={u.level} vip={u.vip} /></div></div>
@@ -471,4 +506,20 @@ function needsTranslation(msgLang, myLang) {
   if (msgLang === myLang) return false;
   if (msgLang === 'latn' && (myLang === 'en' || myLang === 'hi')) return false;
   return true;
+}
+
+function BagForm({ cfg, balance, onDrop, t }) {
+  const min = cfg.min_coins || 100;
+  const maxParts = cfg.max_parts || 50;
+  const [coins, setCoins] = useState(min);
+  const [parts, setParts] = useState(10);
+  const ok = coins >= min && parts >= 1 && parts <= maxParts && coins >= parts;
+  return (
+    <form className="bag-form" onSubmit={(e) => { e.preventDefault(); if (ok) onDrop(Number(coins), Number(parts)); }}>
+      <label>{t('bagCoins')} (min {min})<input type="number" min={min} value={coins} onChange={(e) => setCoins(Number(e.target.value))} /></label>
+      <label>{t('bagParts')} (1-{maxParts})<input type="number" min={1} max={maxParts} value={parts} onChange={(e) => setParts(Number(e.target.value))} /></label>
+      <p className="muted">Balance: {fmt(balance ?? 0)} 🪙</p>
+      <button className="btn primary" type="submit" disabled={!ok}>{t('bagDrop')}</button>
+    </form>
+  );
 }

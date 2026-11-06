@@ -2689,3 +2689,14 @@ img { display: block; }
     gap: 12px; padding-bottom: calc(14px + var(--safe-b));
   }
 }
+
+/* lucky bag (red packet) */
+.ra-emoji { font-size: 20px; line-height: 1; }
+.round-btn.bag { background: rgba(220, 38, 38, .55); }
+.bag-card { position: absolute; right: 12px; bottom: 148px; z-index: 30; display: flex; align-items: center; gap: 10px; background: linear-gradient(135deg, #b91c1c, #ef4444); color: #fff; border-radius: 14px; padding: 10px 12px; box-shadow: 0 6px 24px rgba(0,0,0,.4); cursor: pointer; max-width: 78%; }
+.bag-card .muted { color: rgba(255,255,255,.75); font-size: 12px; display: block; }
+.bag-card .bag-emoji { font-size: 28px; }
+.bag-card .bag-count { font-weight: 700; background: rgba(0,0,0,.3); border-radius: 10px; padding: 4px 10px; }
+.bag-form { display: flex; flex-direction: column; gap: 12px; }
+.bag-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.bag-form input { padding: 10px; border-radius: 10px; border: 1px solid var(--line, #333); background: var(--input-bg, #1c1c22); color: inherit; }
