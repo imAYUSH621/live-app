@@ -46,6 +46,19 @@ jobs:
             echo "ERROR: no embedded JS bundle - APK would need a Metro dev server"
             exit 1
           fi
+      - name: Strip to arm64-v8a only
+        run: |
+          # Test build targets modern 64-bit phones only, to keep the artifact
+          # small enough to send for device testing. Stripped BEFORE signing.
+          APK=$(ls mobile/android/app/build/outputs/apk/release/*.apk | head -1)
+          STRIPPED=mobile/android/app/build/outputs/apk/release/app-arm64-unsigned.apk
+          cp "$APK" "$STRIPPED"
+          zip -d "$STRIPPED" 'lib/armeabi-v7a/*' 'lib/x86/*' 'lib/x86_64/*' > /dev/null
+          if unzip -l "$STRIPPED" | grep -E 'lib/(armeabi-v7a|x86|x86_64)/'; then
+            echo "ERROR: non-arm64 libs remain"
+            exit 1
+          fi
+          unzip -l "$STRIPPED" | grep -c 'lib/arm64-v8a/'
       - name: Sign with a TEST-ONLY debug key
         run: |
           # Public-convention debug credentials ('android'/'android') - this key
@@ -56,7 +69,7 @@ jobs:
             -keyalg RSA -keysize 2048 -validity 10000 \
             -dname "CN=TEST ONLY debug build, O=Unconfigured staging test, C=IN"
           BT=$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)
-          APK=$(ls mobile/android/app/build/outputs/apk/release/*.apk | head -1)
+          APK=mobile/android/app/build/outputs/apk/release/app-arm64-unsigned.apk
           "$ANDROID_HOME/build-tools/$BT/apksigner" sign \
             --ks test-only.keystore --ks-pass pass:android --key-pass pass:android \
             --out mobile/android/app/build/outputs/apk/release/app-release-test.apk \
