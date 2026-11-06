@@ -9,7 +9,8 @@ const r = Router();
 // real database status is used, regardless of the flag.
 // Staging/demo convenience only: requires BOTH a non-production NODE_ENV and the
 // explicit ALLOW_KYC_BYPASS=true opt-in. Production always fails closed.
-const stagingMode = () => config.nodeEnv !== 'production' && process.env.ALLOW_KYC_BYPASS === 'true';
+import { kycBypassEnabled } from '../services/demo.js';
+const stagingMode = kycBypassEnabled;
 
 // GET /api/kyc/me - Current user's KYC / Host verification state
 r.get('/kyc/me', userAuth(), async (req, res) => {
