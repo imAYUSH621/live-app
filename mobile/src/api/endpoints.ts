@@ -26,6 +26,9 @@ export const authApi = {
 
   emailLogin: (data: { email: string; password: string; device_id: string }) =>
     api.post<AuthResponse>('/auth/login', data),
+
+  emailRegister: (data: { email: string; password: string; name?: string; device_id: string }) =>
+    api.post<AuthResponse>('/auth/register', data),
 };
 
 export const userApi = {
