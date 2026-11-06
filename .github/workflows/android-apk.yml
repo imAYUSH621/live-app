@@ -21,7 +21,7 @@ jobs:
           java-version: 17
       - name: Install app dependencies
         working-directory: mobile
-        run: npm ci
+        run: npm ci --legacy-peer-deps
       - name: Generate android project
         working-directory: mobile
         env:
