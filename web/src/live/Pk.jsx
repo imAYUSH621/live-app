@@ -104,7 +104,7 @@ export function PkInviteModal({ invite, onClose }) {
   const { toast } = useApp();
   if (!invite) return null;
   const act = async (a) => {
-    try { await api(`/pk/${invite.pkId}/${a}`, { method: 'POST' }); }
+    try { await api(`/pk/${invite.pk_id}/${a}`, { method: 'POST' }); }
     catch (e) { toast(e.message, 'error'); }
     onClose();
   };
@@ -115,7 +115,7 @@ export function PkInviteModal({ invite, onClose }) {
         <h3>{invite.from.name} wants a PK battle</h3>
         <p className="muted">5 minutes. The host with more gift points wins.</p>
         <div className="row gap">
-          <button className="btn ghost" onClick={() => act('reject')}>Decline</button>
+          <button className="btn ghost" onClick={() => act('decline')}>Decline</button>
           <button className="btn primary" onClick={() => act('accept')}>Accept</button>
         </div>
       </div>

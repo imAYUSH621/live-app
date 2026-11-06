@@ -93,7 +93,7 @@ export default function HostCenter() {
       <h3 className="section-title">Daily record</h3>
       <div className="list compact">
         {!income || income.days.length === 0 ? <p className="muted">Go live to start earning.</p> : income.days.map((x) => (
-          <div key={x.day} className="list-row"><span className="grow">{new Date(x.day).toLocaleDateString('en-IN')}</span><span className="muted">{hrs(x.live_seconds)} h</span><span className="coins">{fmt(x.diamonds)}</span></div>
+          <div key={x.day} className="list-row"><div className="grow"><b>{new Date(x.day).toLocaleDateString('en-IN')}</b></div><span className="muted">{hrs(x.live_seconds)} h</span><span className="coins">{fmt(x.diamonds)}</span></div>
         ))}
       </div>
       <h3 className="section-title">Payout account</h3>
