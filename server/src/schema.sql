@@ -782,3 +782,16 @@ CREATE TABLE IF NOT EXISTS test_artifact_links (
   downloads INT NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS appeals (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id),
+  text TEXT NOT NULL,
+  payout_method TEXT,
+  payout_account TEXT,
+  status TEXT NOT NULL DEFAULT 'open',
+  note TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  decided_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS appeals_user ON appeals(user_id, created_at DESC);

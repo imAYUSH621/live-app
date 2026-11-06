@@ -236,6 +236,33 @@ r.post('/admin/users/:id/ban', adminAuth('users.ban'), async (req, res) => {
   res.json({ ok: true });
 });
 
+
+// ---------- appeals (banned users' only channel back) ----------
+
+r.get('/admin/appeals', adminAuth('users.ban'), async (req, res) => {
+  const status = ['open', 'resolved', 'rejected'].includes(req.query.status) ? req.query.status : null;
+  const rows = await q(
+    `SELECT a.id, a.text, a.payout_method, a.payout_account, a.status, a.note, a.created_at, a.decided_at,
+            u.id AS user_id, u.uid, u.name, u.ban_reason, u.ban_until
+       FROM appeals a JOIN users u ON u.id = a.user_id
+      ${status ? 'WHERE a.status = $1' : ''} ORDER BY a.created_at DESC LIMIT 200`,
+    status ? [status] : []);
+  res.json({ appeals: rows });
+});
+
+r.post('/admin/appeals/:id/decide', adminAuth('users.ban'), async (req, res) => {
+  const id = int(req.params.id);
+  const action = req.body.action === 'resolve' ? 'resolved' : req.body.action === 'reject' ? 'rejected' : null;
+  need(action, 'Action must be resolve or reject');
+  const note = str(req.body.note, 500) || null;
+  const a = await one(
+    `UPDATE appeals SET status=$2, note=$3, decided_at=now() WHERE id=$1 AND status='open' RETURNING *`,
+    [id, action, note]);
+  need(a, 'Appeal not found or already decided');
+  await audit(req, 'appeal.decide', 'appeal', id, { action, note });
+  res.json({ ok: true, appeal: a });
+});
+
 r.post('/admin/users/:id/unban', adminAuth('users.ban'), async (req, res) => {
   const id = int(req.params.id);
   const u = await one(`UPDATE users SET status='active', ban_until=NULL, ban_reason=NULL WHERE id=$1 RETURNING device_id, last_ip`, [id]);
