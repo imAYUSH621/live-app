@@ -173,6 +173,20 @@ export async function placeOnSeat(room, userId, seatNo) {
  * Host always is; a guest only while actively seated and not seat-muted.
  * Used by the LiveKit webhook to reconcile joins made with stale tokens.
  */
+/**
+ * Fail-closed readiness for GUEST seat publishing (production only).
+ * Every path that puts a guest on a seat grants a publish-capable LiveKit
+ * token, and LiveKit has no token revocation - the SFU webhook is the only
+ * server-controlled reconciliation for stale grants. So all seat-granting
+ * routes (request, accept, take) share this one gate: in production a guest
+ * seat is possible only with a configured webhook URL AND an observed
+ * signature-verified delivery (1h TTL, refreshed by every verified event).
+ */
+export async function seatsPublishingReady() {
+  if (config.nodeEnv !== 'production') return true;
+  return !!(config.livekit.webhookUrl && (await redis.get('lk:webhook:delivered')));
+}
+
 export async function publishEntitlement(room, userId) {
   if (!room || room.status !== 'live') return false;
   if (Number(room.host_id) === Number(userId)) return true;

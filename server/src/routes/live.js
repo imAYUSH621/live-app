@@ -13,6 +13,7 @@ import { filterText, checkImage, autoReport } from '../lib/moderation.js';
 import { toRoom, toUser, toAdmins } from '../lib/io.js';
 import { pushToTokens } from '../lib/push.js';
 import * as rs from '../services/roomstate.js';
+import { seatsPublishingReady } from '../services/live.js';
 import { miniProfile, miniProfiles } from '../services/profile.js';
 import {
   lkRoomName, isRoomAdmin, roomState, endRoom, startPk, finishPk, pkInfo,
@@ -332,9 +333,18 @@ r.delete('/live/admins/:userId', auth, async (req, res) => {
 });
 
 // ---------- seats (multi-guest / party) ----------
+// One shared fail-closed gate for every route that seats a guest (grants a
+// publish token). See seatsPublishingReady for the rationale.
+async function requireSeatsReady(res) {
+  if (await seatsPublishingReady()) return true;
+  res.status(503).json({ error: 'Guest seats are temporarily unavailable', code: 'seats_disabled' });
+  return false;
+}
+
 r.post('/live/:id/seats/request', auth, async (req, res) => {
   const room = await getLiveRoom(req.params.id);
   need(room.status === 'live' && room.seats > 0, 'No seats in this room');
+  if (!(await requireSeatsReady(res))) return;
   if (room.type === 'party') {
     // party rooms: free unlocked seat can be taken directly
     await placeOnSeat(room, req.user.id, req.body.seat);
@@ -360,6 +370,7 @@ r.get('/live/:id/seats/requests', auth, async (req, res) => {
 
 r.post('/live/:id/seats/accept', auth, async (req, res) => {
   const room = await getLiveRoom(req.params.id);
+  if (!(await requireSeatsReady(res))) return;
   await requireAdminOf(room, req.user.id);
   const target = int(req.body.user_id);
   await placeOnSeat(room, target, req.body.seat);
@@ -384,12 +395,7 @@ r.post('/live/:id/seats/take', auth, async (req, res) => {
   // events prove the path; no seat needs to exist first). A typo'd or
   // unreachable webhook URL therefore keeps seats off instead of silently
   // shipping the revocation gap.
-  if (config.nodeEnv === 'production') {
-    const delivered = config.livekit.webhookUrl && (await redis.get('lk:webhook:delivered'));
-    if (!delivered) {
-      return res.status(503).json({ error: 'Guest seats are temporarily unavailable', code: 'seats_disabled' });
-    }
-  }
+  if (!(await requireSeatsReady(res))) return;
   const invited = await redis.get(`seatinvite:${room.id}:${req.user.id}`);
   need(invited || room.type === 'party', 'You need an invite from the host');
   await redis.del(`seatinvite:${room.id}:${req.user.id}`);
