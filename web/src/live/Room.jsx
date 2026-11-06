@@ -345,6 +345,7 @@ export default function Room() {
       {/* ---------- chat ---------- */}
       <div className="chat-list">
         <div className="chat-notice">{t('welcomeRules')}</div>
+        {chat.length === 0 && <div className="chat-empty">{t('chatEmpty')}</div>}
         {chat.map((m) => (
           m.system
             ? <div key={m.id} className={`chat-sys ${m.level || ''}`}>{m.text}</div>
@@ -368,23 +369,23 @@ export default function Room() {
             onCompositionStart={() => (composing.current = true)}
             onCompositionEnd={() => (composing.current = false)}
             onKeyDown={(e) => { if (e.key === 'Enter' && (e.nativeEvent.isComposing || composing.current)) e.preventDefault(); }} />
-          {text.trim() ? <button className="composer-send" aria-label={t('send')}><Icon name="send" size={16} /></button> : null}
+          <button className="composer-send" type="submit" disabled={!text.trim()} aria-label={t('send')}><Icon name="send" size={16} /></button>
         </form>
         <div className="room-actions">
         {isHost ? (
           <>
-            {type === 'video' && <button className="round-btn" onClick={() => setSheet('pk')} aria-label="PK"><Icon name="vs" /></button>}
-            {type === 'video' && <button className={`round-btn ${beauty ? 'on' : ''}`} onClick={() => setBeauty(!beauty)} aria-label="Beauty"><Icon name="beauty" /></button>}
-            {type === 'video' && <button className="round-btn" onClick={av.flipCamera} aria-label="Flip camera"><Icon name="flip" /></button>}
-            <button className={`round-btn ${av.micOn ? '' : 'off'}`} onClick={av.toggleMic} aria-label="Mic"><Icon name={av.micOn ? 'mic' : 'micOff'} /></button>
+            {type === 'video' && <span className="ra-item"><button className="round-btn" onClick={() => setSheet('pk')} aria-label="PK"><Icon name="vs" /></button><span className="ra-label">{'PK'}</span></span>}
+            {type === 'video' && <span className="ra-item"><button className={`round-btn ${beauty ? 'on' : ''}`} onClick={() => setBeauty(!beauty)} aria-label="Beauty"><Icon name="beauty" /></button><span className="ra-label">{t('beauty')}</span></span>}
+            {type === 'video' && <span className="ra-item"><button className="round-btn" onClick={av.flipCamera} aria-label="Flip camera"><Icon name="flip" /></button><span className="ra-label">{t('flip')}</span></span>}
+            <span className="ra-item"><button className={`round-btn ${av.micOn ? '' : 'off'}`} onClick={av.toggleMic} aria-label="Mic"><Icon name={av.micOn ? 'mic' : 'micOff'} /></button><span className="ra-label">{t('mic')}</span></span>
           </>
         ) : (
           <>
             {type === 'audio' && mySeat && <button className="round-btn" onClick={leaveSeat} aria-label="Leave seat"><Icon name="micOff" /></button>}
-            <button className="round-btn" onClick={share} aria-label="Share"><Icon name="share" /></button>
-            <button className="round-btn" onClick={() => setSheet('more')} aria-label="More"><Icon name="more" stroke={3} /></button>
-            <button className="round-btn heart" onClick={like} aria-label="Like"><Icon name="heart" fill /></button>
-            <button className="round-btn gift" onClick={() => setSheet('gift')} aria-label="Gifts"><Icon name="gift" /></button>
+            <span className="ra-item"><button className="round-btn" onClick={share} aria-label="Share"><Icon name="share" /></button><span className="ra-label">{t('share')}</span></span>
+            <span className="ra-item"><button className="round-btn" onClick={() => setSheet('more')} aria-label="More"><Icon name="more" stroke={3} /></button><span className="ra-label">{t('more')}</span></span>
+            <span className="ra-item"><button className="round-btn heart" onClick={like} aria-label="Like"><Icon name="heart" fill /></button><span className="ra-label">{t('like')}</span></span>
+            <span className="ra-item"><button className="round-btn gift" onClick={() => setSheet('gift')} aria-label="Gifts"><Icon name="gift" /></button><span className="ra-label">{t('gifts')}</span></span>
           </>
         )}
         </div>

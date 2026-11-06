@@ -53,3 +53,29 @@ test('desktop room uses a three-region layout, PK rooms excluded', () => {
 test('bottom-bar buttons are wrapped for rail placement', () => {
   assert.match(room, /<div className="room-actions">/);
 });
+
+test('send button is always visible and disabled only when the draft is empty', () => {
+  assert.match(room, /<button className="composer-send" type="submit" disabled=\{!text\.trim\(\)\} aria-label=\{t\('send'\)\}>/);
+  assert.match(css, /\.composer-send:disabled/);
+});
+
+test('chat feed has an explicit empty state and long text wraps', () => {
+  assert.match(room, /chat\.length === 0 && <div className="chat-empty">\{t\('chatEmpty'\)\}<\/div>/);
+  assert.match(css, /\.chat-empty/);
+  assert.match(css, /\.chat-msg span \{ overflow-wrap: anywhere/);
+});
+
+test('action rail items carry text labels, shown on desktop only', () => {
+  const labels = (room.match(/className="ra-label"/g) || []).length;
+  assert.ok(labels >= 8, 'viewer + host rail labels present');
+  assert.match(css, /\.ra-label \{ display: none/);
+  assert.match(css, /\.room-actions \.ra-label \{ display: block/);
+});
+
+test('rail labels and empty state are translated in en, hi and ar', () => {
+  const i18n = fs.readFileSync(new URL('../web/src/i18n.js', import.meta.url), 'utf8');
+  for (const key of ['share', 'like', 'gifts', 'mic', 'flip', 'beauty', 'chatEmpty']) {
+    const occurrences = (i18n.match(new RegExp(`${key}:`, 'g')) || []).length;
+    assert.ok(occurrences >= 3, `${key} translated in all three languages`);
+  }
+});
