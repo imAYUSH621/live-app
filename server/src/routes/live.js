@@ -91,7 +91,7 @@ r.post('/live/start', auth, uploader(['image']).single('cover'), async (req, res
   // Production enforces host approval at the route, unconditionally: no settings
   // row or env flag can waive it there. Non-prod follows the (opt-in gated) setting.
   const hostOnlyLive = config.nodeEnv === 'production' ? true : s.room.host_only_live;
-  if (hostOnlyLive) need(req.user.is_host, 'Only verified hosts can go live. Apply to become a host.');
+  if (hostOnlyLive && !req.user.is_host) throw bad('Only verified hosts can go live. Apply to become a host.', 'need_kyc');
   if (req.user.muted_until && new Date(req.user.muted_until) > new Date()) throw forbidden('You are restricted from going live right now');
 
   // one live room per host

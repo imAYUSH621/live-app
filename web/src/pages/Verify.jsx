@@ -78,7 +78,6 @@ export default function Verify() {
       refresh();
     } catch (err) {
       toast(err.message, 'error');
-      if (err.code === 'challenge_expired') setSelfie(null);
     }
     setBusy(false);
   };

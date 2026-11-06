@@ -85,7 +85,7 @@ export default function GoLive() {
       if (cover) f.append('cover', cover);
       const r = await api('/live/start', { method: 'POST', form: f });
       nav(`/live/${r.room.id}`, { replace: true });
-    } catch (e) { toast(e.message, 'error'); if (e.code === 'need_kyc') nav('/verify'); if (e.code === 'need_age') nav('/me/edit'); }
+    } catch (e) { toast(e.message, 'error'); if (e.code === 'need_kyc') nav('/verify'); }
     setBusy(false);
   };
 
