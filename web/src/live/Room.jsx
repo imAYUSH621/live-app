@@ -5,6 +5,7 @@ import { useApp } from '../store.jsx';
 import { Avatar, Icon, LevelBadge, Sheet, Spinner, GemIcon, VerifiedBadge } from '../components/ui.jsx';
 import { useT } from '../i18n.js';
 import { useLiveKit } from './useLiveKit.js';
+import { canFallbackToAudio } from './mediaError.js';
 import { EntryLayer, GiftLayer, LikesLayer } from './Layers.jsx';
 import GiftPanel from './GiftPanel.jsx';
 import { PkBar, PkInviteModal, PkInviteSheet, PkOpponent, PkResult } from './Pk.jsx';
@@ -22,6 +23,7 @@ export default function Room() {
   const [translateOn, setTranslateOn] = useState(false);
   const [tr, setTr] = useState({}); // message id -> translated text
   const [audioOnly, setAudioOnly] = useState(false);
+  const [mediaAttempt, setMediaAttempt] = useState(0);
   const nav = useNavigate();
   const [info, setInfo] = useState(null);
   const [error, setError] = useState(null);
@@ -81,6 +83,7 @@ export default function Room() {
     videoEl,
     lowData,
     audioOnly,
+    attempt: mediaAttempt,
     socket,
     roomId: id,
   });
@@ -253,7 +256,18 @@ export default function Room() {
         <div className="stage-cover">
           <img src={info.room.cover || host?.avatar || '/icon.svg'} alt="" />
           {!isHost && <span>Connecting to live video...</span>}
-          {av.error && <span className="err">{av.error}</span>}
+          {av.mediaError && isHost ? (
+            <div className="media-error">
+              <b>{av.mediaError.title}</b>
+              <span>{av.mediaError.hint}</span>
+              <div className="media-error-actions">
+                <button className="btn" onClick={() => setMediaAttempt((a) => a + 1)}>Try again</button>
+                {type === 'video' && !audioOnly && canFallbackToAudio(av.mediaError.kind) && (
+                  <button className="btn ghost" onClick={() => { setAudioOnly(true); setMediaAttempt((a) => a + 1); }}>{t('audioOnly')}</button>
+                )}
+              </div>
+            </div>
+          ) : av.error && !isHost ? <span className="err">{av.error}</span> : null}
         </div>
       )}
     </>

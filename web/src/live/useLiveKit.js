@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Room, RoomEvent, Track, createLocalTracks } from 'livekit-client';
 import { api } from '../api.js';
+import { describeMediaError } from './mediaError.js';
 
 function attachVideo(container, track, { mirror = false } = {}) {
   if (!container) return;
@@ -32,8 +33,8 @@ function detachVideo(container, track) {
  * rtc = { token, livekit_url } from the room join response.
  * Returns { hostVideo, micOn, error, toggleMic, flipCamera, setSeatMic }.
  */
-export function useLiveKit(rtc, { isHost, type, videoEl, audioOnly = false }) {
-  const [state, setState] = useState({ hostVideo: false, micOn: true, error: null });
+export function useLiveKit(rtc, { isHost, type, videoEl, audioOnly = false, attempt = 0 }) {
+  const [state, setState] = useState({ hostVideo: false, micOn: true, error: null, mediaError: null });
   const roomRef = useRef(null);
   const localVideo = useRef(null);
   const facing = useRef('user');
@@ -83,7 +84,7 @@ export function useLiveKit(rtc, { isHost, type, videoEl, audioOnly = false }) {
           }
         }
       } catch (e) {
-        if (!cancelled) setState((s) => ({ ...s, error: e.message || 'media connection failed' }));
+        if (!cancelled) setState((s) => ({ ...s, error: e.message || 'media connection failed', mediaError: describeMediaError(e) }));
       }
     })();
 
@@ -95,7 +96,7 @@ export function useLiveKit(rtc, { isHost, type, videoEl, audioOnly = false }) {
       room.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rtc?.token, rtc?.livekit_url, isHost, type, audioOnly]);
+  }, [rtc?.token, rtc?.livekit_url, isHost, type, audioOnly, attempt]);
 
   const toggleMic = useCallback(async () => {
     const room = roomRef.current;
