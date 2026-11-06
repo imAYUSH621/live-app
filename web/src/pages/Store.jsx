@@ -4,76 +4,99 @@ import { useApp } from '../store.jsx';
 import AnimPlayer from '../components/AnimPlayer.jsx';
 import { Avatar, CoinIcon, Header, Icon, Spinner } from '../components/ui.jsx';
 
-const TABS = [['vip', 'VIP'], ['entry', 'Entry effects'], ['frame', 'Frames'], ['bubble', 'Chat bubbles']];
+const TABS = [['vip', 'VIP'], ['entry', 'Entry effects'], ['frame', 'Frames'], ['bubble', 'Chat bubbles'], ['badge', 'Badges']];
+const PERK_LABELS = {
+  badge: 'VIP badge', colored_name: 'Colored name', see_visitors: 'See profile visitors',
+  vip_gifts: 'VIP-only gifts', entry_effect: 'Entry effect', anti_kick: 'Cannot be kicked from rooms',
+  frame: 'Profile frame', hide_level: 'Hide level', hide_online: 'Hide online status',
+};
+const perkList = (perks) => Object.keys(perks || {}).filter((k) => perks[k]).map((k) => PERK_LABELS[k] || k.replace(/_/g, ' '));
 
 export default function Store({ vipFirst }) {
-  const { wallet, setWallet, toast, refresh, me } = useApp();
+  const { setWallet, toast, refresh, me } = useApp();
   const [tab, setTab] = useState(vipFirst ? 'vip' : 'entry');
-  const [data, setData] = useState(null);
+  const [items, setItems] = useState(null);
+  const [vip, setVip] = useState(null);
   const [preview, setPreview] = useState(null);
-  const load = () => api('/store').then(setData).catch(() => {});
+  const load = () => {
+    api('/store').then(setItems).catch(() => {});
+    api('/vip').then(setVip).catch(() => {});
+  };
   useEffect(() => { load(); }, []);
 
-  const owned = (id) => data?.mine.find((m) => m.item_id === id);
+  const mine = (me && (me.user || me).items) || [];
+  const owned = (itemId) => mine.find((m) => m.item_id === itemId);
+  const applyMe = (d) => { if (d && typeof d.coins === 'number') setWallet({ coins: d.coins, diamonds: d.diamonds ?? 0 }); refresh(); };
+
   const buy = async (item) => {
-    if (!window.confirm(`Buy ${item.name} for ${fmt(item.price)} coins (${item.days} days)?`)) return;
-    try { const r = await api('/store/buy', { method: 'POST', body: { itemId: item.id } }); setWallet(r.wallet); toast('Purchased and equipped'); load(); refresh(); }
+    if (!window.confirm(`Buy ${item.name} for ${fmt(item.price)} coins (${item.duration_days} days)?`)) return;
+    try { const r = await api('/store/buy', { method: 'POST', body: { item_id: item.id } }); applyMe(r); toast('Purchased and equipped'); load(); }
     catch (e) { toast(e.message, 'error'); }
   };
-  const equip = async (item, on) => {
-    try { await api('/store/equip', { method: 'POST', body: { itemId: item.id, equip: on } }); load(); refresh(); }
+  const equip = async (row, on) => {
+    try { const r = await api('/store/equip', { method: 'POST', body: { user_item_id: row.id, equip: on } }); applyMe(r); load(); }
     catch (e) { toast(e.message, 'error'); }
   };
   const buyVip = async (t) => {
-    if (!window.confirm(`Buy VIP ${t.name} for ${fmt(t.price)} coins (${t.days} days)?`)) return;
-    try { const r = await api('/vip/buy', { method: 'POST', body: { level: t.level } }); setWallet(r.wallet); toast(`You are now VIP ${t.name}!`); load(); refresh(); }
+    if (!window.confirm(`Buy ${t.name} for ${fmt(t.price)} coins (${t.duration_days} days)?`)) return;
+    try { const r = await api('/vip/buy', { method: 'POST', body: { level: t.level } }); applyMe(r); toast('VIP activated'); load(); }
     catch (e) { toast(e.message, 'error'); }
   };
 
+  const vipActive = vip && vip.expires && new Date(vip.expires) > new Date();
+
   return (
     <div className="page">
-      <Header title="Store" right={<span className="coin-pill"><CoinIcon size={14} /> {fmt(wallet.coins)}</span>} />
+      <Header title="Store" right={<span className="coin-pill"><CoinIcon size={14} /> {fmt((me && (me.user || me).coins) || 0)}</span>} />
       <div className="tabs scroll">{TABS.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}</div>
-      {!data ? <Spinner /> : tab === 'vip' ? (
-        <div className="vip-list">
-          {data.myVip.level > 0 && <p className="pill">Your VIP: level {data.myVip.level}, valid till {new Date(Number(data.myVip.expiry)).toLocaleDateString('en-IN')}</p>}
-          {data.vip.map((t) => (
-            <div key={t.level} className="vip-card" style={{ '--vc': t.color }}>
-              <div className="vip-top"><Icon name="crown" size={26} /><h3>VIP{t.level} · {t.name}</h3></div>
-              <ul>{t.perks.map((p) => <li key={p}>{p}</li>)}</ul>
-              <button className="btn primary" onClick={() => buyVip(t)}><CoinIcon size={14} /> {fmt(t.price)} / {t.days} days</button>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="store-grid">
-          {data.items.filter((i) => i.type === tab).map((item) => {
-            const o = owned(item.id);
-            return (
-              <div key={item.id} className={`store-item ${item.type}`}>
-                <div className="si-preview" onClick={() => item.type !== 'bubble' && setPreview(item)}>
-                  {item.type === 'frame' && <div className="frame-demo"><Avatar user={me?.user} size={70} frame={false} /><AnimPlayer src={item.anim_url} loop className="avatar-frame" /></div>}
-                  {item.type === 'entry' && <img src={item.preview} alt="" />}
-                  {item.type === 'bubble' && <div className={`chat-msg ${item.anim_url}`}><b>You:</b> <span>Hello!</span></div>}
-                </div>
-                <b>{item.name}</b>
-                {item.vip_only ? <span className="tag">VIP only</span> : null}
-                {o ? (
-                  <button className={`btn small ${o.equipped ? '' : 'primary'}`} onClick={() => equip(item, !o.equipped)}>{o.equipped ? 'Unequip' : 'Equip'}</button>
-                ) : (
-                  <button className="btn small primary" onClick={() => buy(item)}><CoinIcon size={12} /> {fmt(item.price)}</button>
-                )}
-                {o && <small className="muted">till {new Date(Number(o.expires_at)).toLocaleDateString('en-IN')}</small>}
+      {tab === 'vip' ? (
+        !vip ? <Spinner /> : (
+          <div className="vip-list">
+            {vipActive && <p className="pill">Your VIP: level {vip.current}, valid till {new Date(vip.expires).toLocaleDateString('en-IN')}</p>}
+            {(vip.levels || []).map((t) => (
+              <div key={t.level} className="vip-card">
+                <div className="vip-top"><Icon name="crown" size={26} /><h3>{t.name}</h3></div>
+                <ul>{perkList(t.perks).map((p) => <li key={p}>{p}</li>)}</ul>
+                <button className="btn primary" onClick={() => buyVip(t)}><CoinIcon size={14} /> {fmt(t.price)} / {t.duration_days} days</button>
               </div>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        )
+      ) : (
+        !items ? <Spinner /> : (
+          <div className="store-grid">
+            {items.filter((i) => i.type === tab).map((item) => {
+              const o = owned(item.id);
+              return (
+                <div key={item.id} className={`store-item ${item.type}`}>
+                  <div className="si-preview" onClick={() => item.type !== 'bubble' && setPreview(item)}>
+                    {item.type === 'frame' && <div className="frame-demo"><Avatar user={me?.user} size={70} frame={false} /><AnimPlayer src={item.anim_url} loop className="avatar-frame" /></div>}
+                    {item.type === 'entry' && <img src={item.preview} alt="" />}
+                    {item.type === 'bubble' && <div className={`chat-msg ${item.anim_url}`}><b>You:</b> <span>Hello!</span></div>}
+                    {item.type === 'badge' && <div className="badge-demo" style={{ fontSize: 44 }}>{item.preview}</div>}
+                  </div>
+                  <b>{item.name}</b>
+                  {item.vip_level > 0 ? <span className="tag">VIP {item.vip_level}+</span> : null}
+                  {o ? (
+                    <button className="btn" onClick={() => equip(o, !o.equipped)}>{o.equipped ? 'Unequip' : 'Equip'}</button>
+                  ) : (
+                    <button className="btn primary" onClick={() => buy(item)}><CoinIcon size={14} /> {fmt(item.price)}</button>
+                  )}
+                </div>
+              );
+            })}
+            {items.filter((i) => i.type === tab).length === 0 && <p className="muted">No {tab} items yet.</p>}
+          </div>
+        )
       )}
       {preview && (
-        <div className="modal-wrap" onClick={() => setPreview(null)}>
-          <div className="entry-preview">
-            <AnimPlayer key={preview.id} src={preview.anim_url} loop className="entry-anim" />
-            <div className="entry-who"><Avatar user={me?.user} size={46} frame={false} /><div><b>{me?.user?.name}</b><span>joined the room</span></div></div>
+        <div className="sheet" onClick={() => setPreview(null)}>
+          <div className="sheet-body" onClick={(e) => e.stopPropagation()}>
+            <h3>{preview.name}</h3>
+            {preview.type === 'entry' && <img src={preview.preview} alt="" style={{ width: '100%' }} />}
+            {preview.type === 'frame' && <AnimPlayer src={preview.anim_url} loop style={{ width: 160, height: 160 }} />}
+            {preview.type === 'badge' && <div style={{ fontSize: 64, textAlign: 'center' }}>{preview.preview}</div>}
+            <button className="btn" onClick={() => setPreview(null)}>Close</button>
           </div>
         </div>
       )}
