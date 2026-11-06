@@ -224,6 +224,9 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - uses: reactivecircus/android-emulator-runner@v2
+        env:
+          DUMMY_HOST_EMAIL: ${{ secrets.NATIVE_QA_HOST_EMAIL }}
+          DUMMY_HOST_PASSWORD: ${{ secrets.NATIVE_QA_HOST_PASSWORD }}
         with:
           api-level: 35
           target: google_apis

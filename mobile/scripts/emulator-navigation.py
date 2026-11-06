@@ -1,4 +1,4 @@
-import subprocess,time,xml.etree.ElementTree as ET,re,pathlib
+import subprocess,time,xml.etree.ElementTree as ET,re,pathlib,os,shlex
 
 def adb(*args):return subprocess.check_output(['adb',*args],text=True)
 def hierarchy():
@@ -33,6 +33,30 @@ try:
  adb('shell','monkey','-p','com.liveapp.live','-c','android.intent.category.LAUNCHER','1')
  wait('Use email instead');capture('relaunch')
  print('NAVIGATION_RELAUNCH_PASS')
+ # Optional approved dummy credentials are injected as masked runner secrets.
+ if os.environ.get('DUMMY_HOST_PASSWORD'):
+  tap('Use email instead');r=wait('Email')
+  inputs=[n for n in r.iter('node') if n.get('class')=='android.widget.EditText']
+  assert len(inputs)>=2
+  for node,value in zip(inputs,[os.environ['DUMMY_HOST_EMAIL'],os.environ['DUMMY_HOST_PASSWORD']]):
+   x1,y1,x2,y2=map(int,re.findall(r'\d+',node.get('bounds')))
+   adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2))
+   # No command, input values, hierarchy, screenshot or logcat is printed during entry.
+   subprocess.run(['adb','shell','input','text',shlex.quote(value.replace(' ','%s'))],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+  adb('shell','input','keyevent','KEYCODE_BACK')
+  r=hierarchy()
+  consent=next(n for n in r.iter('node') if 'I confirm I am' in n.get('text',''))
+  x1,y1,x2,y2=map(int,re.findall(r'\d+',consent.get('bounds')))
+  adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2))
+  tap('Sign In');wait('Moments');capture('host-auth-home')
+  tap('Me');capture('host-auth-profile');tap('Live');capture('host-auth-live')
+  adb('shell','am','force-stop','com.liveapp.live')
+  adb('shell','monkey','-p','com.liveapp.live','-c','android.intent.category.LAUNCHER','1')
+  wait('Moments');capture('host-auth-session-relaunch')
+  print('HOST_PASSWORD_AUTH_TABS_SESSION_PASS')
+  # Remove dummy app data to exercise independent guest authentication afterward.
+  adb('shell','pm','clear','com.liveapp.live')
+  adb('shell','monkey','-p','com.liveapp.live','-c','android.intent.category.LAUNCHER','1');wait('Use email instead')
  # Use the real guest-auth path, no OTP/password and no session injection.
  for _ in range(3):
   if 'Explore as Guest' in texts(hierarchy()):break
@@ -47,6 +71,7 @@ try:
  wait('Moments');capture('guest-session-relaunch')
  print('GUEST_AUTH_TABS_SESSION_RELAUNCH_PASS')
 finally:
- log=adb('logcat','-d','-v','threadtime');pathlib.Path('nav-logcat.txt').write_text(log)
+ log=adb('logcat','-d','-v','threadtime')
+ if not os.environ.get('DUMMY_HOST_PASSWORD'):pathlib.Path('nav-logcat.txt').write_text(log)
  assert 'FATAL EXCEPTION' not in log,'fatal logs'
  assert 'registerGlobals skipped' not in log,'registration warning'
