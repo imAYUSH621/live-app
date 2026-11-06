@@ -122,8 +122,8 @@ export async function seed() {
   }
 
   if (await empty('banners')) {
-    await q(`INSERT INTO banners(title, color, link, position, sort) VALUES ('Welcome! Go live and earn 💎','#7c3aed','/host/apply','home',0),
-             ('First recharge = DOUBLE coins 🎁','#db2777','/wallet','home',1), ('First recharge bonus on small packs','#db2777',NULL,'recharge',0)`);
+    await q(`INSERT INTO banners(title, color, link, position, sort) VALUES ('Welcome! Go live and say hi 🎥','#7c3aed','/host/apply','home',0),
+             ('Welcome to the demo community 🎁','#db2777','/','home',1), ('First recharge bonus on small packs','#db2777',NULL,'recharge',0)`);
   }
 
   if (await empty('cms_pages')) {
