@@ -21,6 +21,7 @@ for (const key of ['luckyBag', 'bagCoins', 'bagParts', 'bagDrop', 'bagGrab', 'ba
 
 const live = readFileSync(new URL('../server/src/routes/live.js', import.meta.url), 'utf8');
 const services = readFileSync(new URL('../server/src/services/live.js', import.meta.url), 'utf8');
+const css = readFileSync(new URL('../web/src/styles.css', import.meta.url), 'utf8');
 check('server broadcast room:redpacket on drop', live.includes("toRoom(room.id, 'room:redpacket'"));
 check('server grab is one-per-user', live.includes('You already grabbed this one'));
 check('server grab fails closed when exhausted', live.includes('All gone!'));
@@ -38,3 +39,10 @@ for (const key of ['bagTerms', 'bagConfirm', 'bagConfirmBtn']) {
 
 console.log(failures ? `${failures} FAILED` : 'ALL PASS');
 process.exit(failures ? 1 : 0);
+
+// Late-join state: join/info responses carry the active grabbable packet
+check('join response carries active_red_packet for late joiners', live.includes('active_red_packet: activeBag'));
+check('room info response carries active_red_packet too', live.includes('active_red_packet: bag ?'));
+check('web adopts the server-provided active bag once', room.includes('info?.room?.active_red_packet') && room.includes('bagFromInfo'));
+check('send sheet text is dark-on-light readable', css.includes('.bag-form { display: flex; flex-direction: column; gap: 12px; color: #111728; }') && css.includes('.bag-form .bag-confirm { color: #111728; font-weight: 600;'));
+check('bag card clears the right action rail', css.includes('right: 76px; bottom: 148px;'));

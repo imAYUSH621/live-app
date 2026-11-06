@@ -67,6 +67,10 @@ r.get('/live/feed', auth, async (req, res) => {
 r.get('/live/:id', auth, async (req, res) => {
   const room = await getLiveRoom(req.params.id);
   const host = await miniProfile(room.host_id);
+  const bag = await one(
+    `SELECT id, sender_id, coins, parts, opens_at, expires_at FROM red_packets
+     WHERE room_id=$1 AND NOT refunded AND remaining_parts>0 AND expires_at>now()
+     ORDER BY id DESC LIMIT 1`, [room.id]);
   res.json({
     ...room,
     password: undefined,
@@ -74,6 +78,7 @@ r.get('/live/:id', auth, async (req, res) => {
     cover: room.cover_url,
     cover_url: room.cover_url,
     viewers: await rs.viewerCount(room.id),
+    active_red_packet: bag ? { ...bag, from: await miniProfile(bag.sender_id) } : null,
   });
 });
 
@@ -237,6 +242,10 @@ r.post('/live/:id/join', auth, async (req, res) => {
     metadata: { role: isHost ? 'host' : 'viewer' },
   });
   const state = await roomState(room, req.user.id);
+  const activeBag = await one(
+    `SELECT id, sender_id, coins, parts, opens_at, expires_at FROM red_packets
+     WHERE room_id=$1 AND NOT refunded AND remaining_parts>0 AND expires_at>now()
+     ORDER BY id DESC LIMIT 1`, [room.id]);
   res.json({
     room: {
       ...room,
@@ -245,6 +254,7 @@ r.post('/live/:id/join', auth, async (req, res) => {
       host: state.host,
       cover: room.cover_url,
       cover_url: room.cover_url,
+      active_red_packet: activeBag ? { ...activeBag, from: await miniProfile(activeBag.sender_id) } : null,
     },
     token,
     livekit_url: livekitUrl(),

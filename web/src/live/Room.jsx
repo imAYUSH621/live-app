@@ -26,6 +26,10 @@ export default function Room() {
   const [mediaAttempt, setMediaAttempt] = useState(0);
   const nav = useNavigate();
   const [info, setInfo] = useState(null);
+  const bagFromInfo = useRef(false);
+  useEffect(() => {
+    if (!bagFromInfo.current && info?.room?.active_red_packet) { setBag(info.room.active_red_packet); bagFromInfo.current = true; }
+  }, [info]);
   const [error, setError] = useState(null);
   const [chat, setChat] = useState([]);
   const [viewers, setViewers] = useState(0);
