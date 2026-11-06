@@ -20,9 +20,21 @@ for (const key of ['luckyBag', 'bagCoins', 'bagParts', 'bagDrop', 'bagGrab', 'ba
 }
 
 const live = readFileSync(new URL('../server/src/routes/live.js', import.meta.url), 'utf8');
+const services = readFileSync(new URL('../server/src/services/live.js', import.meta.url), 'utf8');
 check('server broadcast room:redpacket on drop', live.includes("toRoom(room.id, 'room:redpacket'"));
 check('server grab is one-per-user', live.includes('You already grabbed this one'));
 check('server grab fails closed when exhausted', live.includes('All gone!'));
+
+// Spend-confirmation and terms (parent acceptance criteria)
+check('send form shows delay/expiry/refund terms', room.includes("t('bagTerms', { delay, expire })"));
+check('drop requires an explicit confirm step', room.includes('if (!confirming) { setConfirming(true); return; }'));
+check('double submit is guarded while sending', room.includes('if (!ok || sending) return') && room.includes('disabled={!ok || sending}'));
+check('editing amounts resets the confirm step', room.includes('setConfirming(false); }}'));
+check('server enforces min coins and parts bounds', live.includes('Minimum') && live.includes('Parts must be 1-'));
+check('server refund claims each packet atomically once', services.includes('SET refunded=true WHERE id=$1 AND NOT refunded RETURNING'));
+for (const key of ['bagTerms', 'bagConfirm', 'bagConfirmBtn']) {
+  check(`i18n key ${key} in en+hi+ar`, (i18n.match(new RegExp(key + ':', 'g')) || []).length === 3);
+}
 
 console.log(failures ? `${failures} FAILED` : 'ALL PASS');
 process.exit(failures ? 1 : 0);

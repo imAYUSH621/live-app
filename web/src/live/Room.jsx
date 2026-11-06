@@ -513,13 +513,25 @@ function BagForm({ cfg, balance, onDrop, t }) {
   const maxParts = cfg.max_parts || 50;
   const [coins, setCoins] = useState(min);
   const [parts, setParts] = useState(10);
+  const [confirming, setConfirming] = useState(false);
+  const [sending, setSending] = useState(false);
   const ok = coins >= min && parts >= 1 && parts <= maxParts && coins >= parts;
+  const delay = cfg.delay_sec ?? 5, expire = cfg.expire_sec ?? 120;
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!ok || sending) return;
+    if (!confirming) { setConfirming(true); return; }
+    setSending(true);
+    try { await onDrop(Number(coins), Number(parts)); } finally { setSending(false); setConfirming(false); }
+  };
   return (
-    <form className="bag-form" onSubmit={(e) => { e.preventDefault(); if (ok) onDrop(Number(coins), Number(parts)); }}>
-      <label>{t('bagCoins')} (min {min})<input type="number" min={min} value={coins} onChange={(e) => setCoins(Number(e.target.value))} /></label>
-      <label>{t('bagParts')} (1-{maxParts})<input type="number" min={1} max={maxParts} value={parts} onChange={(e) => setParts(Number(e.target.value))} /></label>
+    <form className="bag-form" onSubmit={submit}>
+      <label>{t('bagCoins')} (min {min})<input type="number" min={min} value={coins} onChange={(e) => { setCoins(Number(e.target.value)); setConfirming(false); }} /></label>
+      <label>{t('bagParts')} (1-{maxParts})<input type="number" min={1} max={maxParts} value={parts} onChange={(e) => { setParts(Number(e.target.value)); setConfirming(false); }} /></label>
+      <p className="muted">{t('bagTerms', { delay, expire })}</p>
       <p className="muted">Balance: {fmt(balance ?? 0)} 🪙</p>
-      <button className="btn primary" type="submit" disabled={!ok}>{t('bagDrop')}</button>
+      {confirming && <p className="bag-confirm">{t('bagConfirm', { coins: fmt(coins), parts })}</p>}
+      <button className="btn primary" type="submit" disabled={!ok || sending}>{confirming ? t('bagConfirmBtn') : t('bagDrop')}</button>
     </form>
   );
 }
