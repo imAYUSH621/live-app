@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { post, del, num, dt, media, fetchPrivateMedia } from '../lib/api.js';
-import { useLoad, useAct, Table, Badge, UserCell, Tabs, Pager } from '../ui.jsx';
+import { useLoad, useAct, Table, Badge, UserCell, Tabs, Pager, Modal } from '../ui.jsx';
 import { UserDrawer } from './People.jsx';
 
 export function Reports() {
@@ -121,6 +121,43 @@ export function BannedDevices() {
         <Table rows={data?.devices} columns={[{ key: 'device_id', label: 'Device' }, { key: 'reason', label: 'Reason' }, { label: 'When', render: (r) => dt(r.created_at) }, { label: '', render: (r) => <button className="btn sm" onClick={() => lift(r.device_id)}>Lift</button> }]} />
         <Table rows={data?.ips} columns={[{ key: 'ip', label: 'IP' }, { key: 'reason', label: 'Reason' }, { label: 'When', render: (r) => dt(r.created_at) }, { label: '', render: (r) => <button className="btn sm" onClick={() => lift(r.ip)}>Lift</button> }]} />
       </div>
+    </>
+  );
+}
+
+export function Appeals() {
+  const [status, setStatus] = useState('open');
+  const { data, reload } = useLoad(`/admin/appeals${status ? `?status=${status}` : ''}`, [status]);
+  const act = useAct();
+  const [deciding, setDeciding] = useState(null); // { appeal, action }
+  const [note, setNote] = useState('');
+  const decide = async () => {
+    await act(() => post(`/admin/appeals/${deciding.appeal.id}/decide`, { action: deciding.action, note }), 'Decision saved');
+    setDeciding(null); setNote(''); reload();
+  };
+  return (
+    <>
+      <div className="head"><h1>Appeals</h1></div>
+      <Tabs value={status} onChange={setStatus} tabs={[['open', 'Open'], ['resolved', 'Resolved'], ['rejected', 'Rejected'], ['', 'All']]} />
+      <Table rows={data?.appeals} columns={[
+        { label: 'User', render: (r) => <UserCell u={{ id: r.user_id, uid: r.uid, name: r.name }} /> },
+        { key: 'text', label: 'Appeal' },
+        { label: 'Ban reason', render: (r) => r.ban_reason || '—' },
+        { label: 'Status', render: (r) => <Badge v={r.status} /> },
+        { label: 'When', render: (r) => dt(r.created_at) },
+        { label: 'Note', render: (r) => r.note || '—' },
+        { label: '', render: (r) => r.status === 'open' && (
+          <>
+            <button className="btn sm" onClick={() => { setDeciding({ appeal: r, action: 'resolve' }); setNote(''); }}>Resolve</button>{' '}
+            <button className="btn sm danger" onClick={() => { setDeciding({ appeal: r, action: 'reject' }); setNote(''); }}>Reject</button>
+          </>
+        ) },
+      ]} />
+      <Modal open={!!deciding} onClose={() => setDeciding(null)} title={deciding?.action === 'resolve' ? 'Resolve appeal' : 'Reject appeal'}>
+        <p className="muted small">{deciding?.appeal?.text}</p>
+        <textarea className="input" rows={3} placeholder="Decision note (shown to the user)" value={note} onChange={(e) => setNote(e.target.value)} />
+        <button className="btn primary block" style={{ marginTop: 10 }} onClick={decide}>{deciding?.action === 'resolve' ? 'Resolve' : 'Reject'}</button>
+      </Modal>
     </>
   );
 }

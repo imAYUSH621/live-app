@@ -33,5 +33,13 @@ check('admin appeals list route', /r\.get\('\/admin\/appeals', adminAuth\('users
 check('admin appeal decide route', /r\.post\('\/admin\/appeals\/:id\/decide', adminAuth\('users\.ban'\)/.test(admin));
 check('appeal decision is audited', /audit\(req, 'appeal\.decide'/.test(admin));
 
+// Admin panel UI: appeals section exists, permissioned, wired to the API
+const adminApp = readFileSync(`${root}/admin/src/App.jsx`, 'utf8');
+const adminMod = readFileSync(`${root}/admin/src/pages/Moderation.jsx`, 'utf8');
+check('admin nav has Appeals under users.ban', /'\/appeals', 'Appeals', 'users\.ban'/.test(adminApp));
+check('admin Appeals component lists the queue', /useLoad\(`\/admin\/appeals/.test(adminMod));
+check('admin Appeals decides via the API', /post\(`\/admin\/appeals\/\$\{deciding\.appeal\.id\}\/decide`/.test(adminMod));
+check('admin Appeals imports Modal (decision dialog)', /Modal/.test(adminMod.split('\n')[2]));
+
 console.log(failures ? `\n${failures} FAILURES` : '\nALL PASS');
 process.exit(failures ? 1 : 0);

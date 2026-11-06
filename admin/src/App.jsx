@@ -5,7 +5,7 @@ import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import { Users, Hosts, Agencies } from './pages/People.jsx';
 import Live from './pages/Live.jsx';
-import { Reports, Risk, MomentsMod, BannedDevices } from './pages/Moderation.jsx';
+import { Reports, Risk, MomentsMod, BannedDevices, Appeals } from './pages/Moderation.jsx';
 import { Gifts, StoreAdmin, Banners, Events, Tasks, Cms, HostLevels, Notifications, Families, Rankings } from './pages/Content.jsx';
 import { Orders, Economy, Settlement, Sellers, Ledger, Analytics } from './pages/Finance.jsx';
 import { Staff, Audit, Settings, Support, Account } from './pages/System.jsx';
@@ -20,6 +20,7 @@ const ADMIN_NAV = [
   ['/risk', 'Risk & fraud', 'risk', <Risk />, 'Moderation'],
   ['/moments', 'Moments', 'moments', <MomentsMod />, 'Moderation'],
   ['/banned', 'Banned devices', 'users.ban', <BannedDevices />, 'Moderation'],
+  ['/appeals', 'Appeals', 'users.ban', <Appeals />, 'Moderation'],
   ['/users', 'Users', 'users.view', <Users />, 'People'],
   ['/hosts', 'Hosts', 'hosts', <Hosts />, 'People'],
   ['/host-levels', 'Host levels', 'hosts', <HostLevels />, 'People'],
