@@ -47,8 +47,8 @@ export async function api(path, { method = 'GET', body, form } = {}) {
   try { data = await res.json(); } catch { /* empty */ }
   if (!res.ok) {
     if (res.status === 401 && t) { setToken(null); window.dispatchEvent(new Event('liveapp:logout')); }
-    if (res.status === 403 && data?.error === 'banned') window.dispatchEvent(new Event('liveapp:banned'));
-    const err = new ApiErr(res.status, data?.error, data?.message || 'Something went wrong');
+    if (res.status === 403 && data?.code === 'banned') window.dispatchEvent(new Event('liveapp:banned'));
+    const err = new ApiErr(res.status, data?.code, data?.error || data?.message || 'Something went wrong');
     err.data = data;
     throw err;
   }
