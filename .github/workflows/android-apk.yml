@@ -28,6 +28,9 @@ jobs:
       - name: Install app dependencies
         working-directory: mobile
         run: npm ci --legacy-peer-deps
+      - name: Test native live API contract
+        working-directory: mobile
+        run: npm run test:live-contract
       - name: Generate android project
         working-directory: mobile
         env:
