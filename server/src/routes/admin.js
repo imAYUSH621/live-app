@@ -15,6 +15,7 @@ import { onlineCount, hostRoom } from '../services/roomstate.js';
 import { hostMonth } from '../services/settlement.js';
 import { endRoom } from '../services/live.js';
 import { config } from '../config.js';
+import { readinessFlags } from '../services/demo.js';
 
 const r = Router();
 
@@ -66,6 +67,12 @@ const handleAdminLogin = async (req, res) => {
 
 r.post('/admin/login', rateLimit({ windowMs: 60_000, limit: 20 }), handleAdminLogin);
 r.post('/auth/admin/login', rateLimit({ windowMs: 60_000, limit: 20 }), handleAdminLogin);
+
+// Effective non-secret configuration state for launch-readiness checks.
+// Booleans and provider names only - never keys, secrets, or values.
+r.get('/admin/readiness', adminAuth(), async (_req, res) => {
+  res.json({ readiness: readinessFlags() });
+});
 
 r.get('/admin/me', adminAuth(), async (req, res) => {
   const a = await one('SELECT totp_secret IS NOT NULL AS twofa FROM admin_users WHERE id=$1', [req.admin.id]);

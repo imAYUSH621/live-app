@@ -6,6 +6,7 @@ import { getSettings } from '../lib/settings.js';
 import { withLevels, levelProgress } from '../lib/levels.js';
 import { signToken } from '../lib/auth.js';
 import { config } from '../config.js';
+import { kycBypassEnabled } from './demo.js';
 
 async function uniqueUid(c) {
   for (let i = 0; i < 20; i++) {
@@ -70,7 +71,7 @@ export async function meView(userId) {
   delete u.password_hash;
   // Staging/demo convenience only: auto-approve outside production.
   // In production the flag is ignored and status comes from the database.
-  const stagingAutoApprove = config.nodeEnv !== 'production' && process.env.ALLOW_KYC_BYPASS === 'true';
+  const stagingAutoApprove = kycBypassEnabled();
   const isHostApproved = stagingAutoApprove ? true : Boolean(u.is_host || host?.status === 'approved');
   return {
     ...u,

@@ -4,6 +4,7 @@ import rateLimit from 'express-rate-limit';
 import { OAuth2Client } from 'google-auth-library';
 import { one, q } from '../db.js';
 import { config } from '../config.js';
+import { demoLoginEnabled } from '../services/demo.js';
 import { bad, need, str, clientIp, randomDigits } from '../lib/util.js';
 import { getSettings } from '../lib/settings.js';
 import { signToken } from '../lib/auth.js';
@@ -80,7 +81,7 @@ r.post('/otp/send', async (req, res) => {
   // Demo-phone OTP shortcut: staging/demo convenience only, requires BOTH a
   // non-production NODE_ENV and the explicit ALLOW_DEMO_LOGIN=true opt-in.
   // Production always fails closed - every phone needs its real OTP.
-  const demoPhonesEnabled = config.nodeEnv !== 'production' && process.env.ALLOW_DEMO_LOGIN === 'true';
+  const demoPhonesEnabled = demoLoginEnabled();
   const isDemo = demoPhonesEnabled && (phone.startsWith('999999') || phone.includes('999999') || ['9999990001', '9999990002', '9999990003', '9999990004'].includes(phone));
   const code = isDemo ? '123456' : randomDigits(6);
   await q(
@@ -113,7 +114,7 @@ r.post('/otp/verify', async (req, res) => {
   // Demo-phone OTP shortcut: staging/demo convenience only, requires BOTH a
   // non-production NODE_ENV and the explicit ALLOW_DEMO_LOGIN=true opt-in.
   // Production always fails closed - every phone needs its real OTP.
-  const demoPhonesEnabled = config.nodeEnv !== 'production' && process.env.ALLOW_DEMO_LOGIN === 'true';
+  const demoPhonesEnabled = demoLoginEnabled();
   const isDemo = demoPhonesEnabled && (phone.startsWith('999999') || phone.includes('999999') || ['9999990001', '9999990002', '9999990003', '9999990004'].includes(phone));
 
   const row = await one(
