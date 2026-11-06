@@ -47,3 +47,13 @@ export const money = (n, c = 'INR') => (c === 'INR' ? '₹' : `${c} `) + Number(
 export const dt = (d) => (d ? new Date(d).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—');
 export const day = (d) => (d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '—');
 export const lastMonth = () => new Date(Date.now() - 15 * 864e5).toISOString().slice(0, 7);
+
+// Private uploads (KYC docs, report evidence) need the admin bearer header,
+// so <img>/<a> cannot load them directly. Fetch as an authenticated blob and
+// hand out an object URL; callers revoke it on unmount.
+export async function fetchPrivateMedia(u) {
+  const s = session.get();
+  const res = await fetch(`${API_URL}${u}`, { headers: s?.token ? { Authorization: `Bearer ${s.token}` } : {} });
+  if (!res.ok) throw new ApiError(`Error ${res.status}`, res.status);
+  return URL.createObjectURL(await res.blob());
+}

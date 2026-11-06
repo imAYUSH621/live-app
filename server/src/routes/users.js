@@ -196,13 +196,13 @@ r.delete('/users/:id/block', auth, async (req, res) => {
 });
 
 // ---------- reports ----------
-r.post('/reports', auth, uploader(['image'], { sensitive: true }).single('screenshot'), async (req, res) => {
+r.post('/reports', auth, uploader(['image'], { sensitive: 'reports' }).single('screenshot'), async (req, res) => {
   const type = str(req.body.target_type, 20);
   need(['user', 'room', 'moment', 'message'].includes(type), 'Invalid report type');
   const targetId = str(req.body.target_id, 40);
   need(targetId, 'target_id required');
   await q(`INSERT INTO reports(reporter_id, target_type, target_id, reason, details, screenshot_url) VALUES ($1,$2,$3,$4,$5,$6)`,
-    [req.user.id, type, targetId, str(req.body.reason, 60) || 'other', str(req.body.details, 500), req.file ? await storeUpload(req.file, { sensitive: true }) : null]);
+    [req.user.id, type, targetId, str(req.body.reason, 60) || 'other', str(req.body.details, 500), req.file ? await storeUpload(req.file, { sensitive: 'reports' }) : null]);
   // auto-flag rooms with many open reports
   if (type === 'room') {
     const m = await getSetting('moderation');

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { post, del, num, dt, media } from '../lib/api.js';
+import { post, del, num, dt, media, fetchPrivateMedia } from '../lib/api.js';
 import { useLoad, useAct, Table, Badge, UserCell, Tabs, Pager } from '../ui.jsx';
 import { UserDrawer } from './People.jsx';
 
@@ -29,7 +29,9 @@ export function Reports() {
           </div>
         ) },
         { label: 'Reason', render: (r) => <><b>{r.reason}</b><div className="muted small">{r.details}</div></> },
-        { label: 'Evidence', render: (r) => (r.screenshot_url ? <a href={media(r.screenshot_url)} target="_blank" rel="noreferrer">screenshot</a> : '—') },
+        { label: 'Evidence', render: (r) => (r.screenshot_url ? (r.screenshot_url.startsWith('/uploads-private/')
+        ? <a href="#" onClick={(e) => { e.preventDefault(); fetchPrivateMedia(r.screenshot_url).then((b) => window.open(b, '_blank')); }}>screenshot</a>
+        : <a href={media(r.screenshot_url)} target="_blank" rel="noreferrer">screenshot</a>) : '—') },
         { label: 'By', render: (r) => r.reporter?.name || 'System' },
         { label: 'Status', render: (r) => <><Badge v={r.status} />{r.assignee && <div className="small muted">{r.assignee}</div>}</> },
         { label: 'When', render: (r) => <span className="small">{dt(r.created_at)}</span> },

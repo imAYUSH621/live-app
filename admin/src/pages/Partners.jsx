@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { get, post, patch, num, money, dt, lastMonth } from '../lib/api.js';
-import { useLoad, useAct, Table, Badge, Stat, Tabs, FormModal, UserCell, Avatar, useToast } from '../ui.jsx';
+import { useLoad, useAct, Table, Badge, Stat, Tabs, FormModal, UserCell, Avatar, PrivateImg, useToast } from '../ui.jsx';
 
 // ======================= AGENCY PANEL =======================
 export function AgencyHome() {
@@ -68,7 +68,7 @@ export function AgencyApplications() {
       <div className="head"><h1>Host applications</h1></div>
       <p className="muted" style={{ marginTop: -8, marginBottom: 12 }}>Check the selfie matches the person you recruited. After you approve, the platform does a final review.</p>
       <Table loading={loading} rows={data} columns={[
-        { label: 'Selfie', render: (r) => <Avatar src={r.selfie_url} name={r.name} size={48} /> },
+        { label: 'Selfie', render: (r) => (r.selfie_url?.startsWith('/uploads-private/') ? <PrivateImg url={r.selfie_url} style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }} /> : <Avatar src={r.selfie_url} name={r.name} size={48} />) },
         { label: 'Applicant', render: (r) => <><b>{r.real_name}</b><div className="muted small">{r.name} · ID {r.uid} · {r.gender} · {r.country}</div></> },
         { label: 'Contact', render: (r) => <span className="small">{r.phone || r.email || '—'}</span> },
         { label: 'Status', render: (r) => <Badge v={r.status} /> }, { label: 'Applied', render: (r) => dt(r.applied_at) },

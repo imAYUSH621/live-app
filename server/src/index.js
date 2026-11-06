@@ -12,7 +12,7 @@ import { seed } from './seed.js';
 import { syncFxLibrary, FX_DIR } from './fxLibrary.js';
 import { initSocket } from './socket.js';
 import { startJobs } from './jobs.js';
-import { uploadRoot, privateRoot, privateUploadAuth } from './lib/upload.js';
+import { uploadRoot, privateRoot, privateUploadAuth, cloudinaryEnabled } from './lib/upload.js';
 import { getSettings } from './lib/settings.js';
 import { verifyToken } from './lib/auth.js';
 import { livekitHealthy } from './lib/livekit.js';
@@ -66,7 +66,15 @@ app.post('/api/livekit/webhook', express.raw({ type: '*/*', limit: '1mb' }), liv
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-app.use('/uploads-private', privateUploadAuth, express.static(privateRoot, { maxAge: 0 }));
+const privateStaticOpts = {
+  index: false, dotfiles: 'deny', fallthrough: false, maxAge: 0,
+  setHeaders: (res) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'no-store');
+  },
+};
+app.use('/uploads-private/kyc', privateUploadAuth('kyc'), express.static(path.join(privateRoot, 'kyc'), privateStaticOpts));
+app.use('/uploads-private/reports', privateUploadAuth('reports'), express.static(path.join(privateRoot, 'reports'), privateStaticOpts));
 // Never leak the admin-only private subtree through the public static mount.
 app.use('/uploads', (req, res, next) => (req.path === '/private' || req.path.startsWith('/private/')) ? res.status(404).end() : next(),
   express.static(uploadRoot, { maxAge: '30d', immutable: true, fallthrough: false, index: false, dotfiles: 'deny' }));
@@ -88,7 +96,13 @@ app.get('/api/health', async (_req, res) => {
   const db = await pool.query('SELECT 1').then(() => true).catch(() => false);
   const rd = (await redis.ping().catch(() => '')) === 'PONG';
   const webhookDelivered = !!(await redis.get('lk:webhook:delivered').catch(() => null));
-  res.status(db && rd ? 200 : 503).json({ ok: db && rd, db, redis: rd, livekit: await livekitHealthy(), livekit_webhook: { configured: !!config.livekit.webhookUrl, delivered: webhookDelivered } });
+  res.status(db && rd ? 200 : 503).json({
+    ok: db && rd, db, redis: rd, livekit: await livekitHealthy(),
+    livekit_webhook: { configured: !!config.livekit.webhookUrl, delivered: webhookDelivered },
+    // Media persistence is observable on purpose: on hosts without a
+    // persistent disk the local backend loses uploads on restart/redeploy.
+    storage: { backend: cloudinaryEnabled() ? 'cloudinary' : 'local', persistent: cloudinaryEnabled() },
+  });
 });
 
 // Maintenance mode: blocks app users (admin/agency/seller panels keep working)
