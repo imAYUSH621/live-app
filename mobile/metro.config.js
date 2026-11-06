@@ -29,7 +29,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   // and the lazy global.ReadableStream getter throws
   // "Requiring unknown module undefined" on first access - which aborts
   // LiveKit's registerGlobals (caught by our root layout's guard, leaving the
-  // whole WebRTC/media stack unregistered). v4's package main IS the ponyfill,
+  // later registration steps incomplete). v4's package main IS the ponyfill,
   // so alias the removed subpath to the package root.
   if (moduleName === 'web-streams-polyfill/ponyfill/es6') {
     return context.resolveRequest(context, 'web-streams-polyfill', platform);
