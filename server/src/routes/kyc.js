@@ -51,13 +51,7 @@ r.get('/kyc/me', userAuth(), async (req, res) => {
   });
 });
 
-// GET /api/kyc/challenge - Liveness detection challenge
-r.get('/kyc/challenge', (_req, res) => {
-  res.json({
-    text: 'Look at the camera and smile',
-    challenge_id: 'ch_' + Date.now()
-  });
-});
+// No automated liveness challenge: verification is manual admin review of ID + selfie.
 
 // POST /api/kyc - Submit document and live selfie
 r.post('/kyc', userAuth(), async (req, res) => {

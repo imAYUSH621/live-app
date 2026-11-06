@@ -34,7 +34,7 @@ const POPULAR_CODES = ['IN', 'AE', 'SA', 'US', 'GB', 'CA', 'PK', 'BD', 'QA'];
 export default function Login() {
   const { token, login, toast, config, setLang } = useApp();
   const [phone, setPhone] = useState('');
-  const [countries, setCountries] = useState(DEFAULT_COUNTRIES);
+  const [countries] = useState(DEFAULT_COUNTRIES);
   const [cc, setCc] = useState('IN');
   const [code, setCode] = useState('');
   const [step, setStep] = useState('phone');
@@ -54,21 +54,7 @@ export default function Login() {
   const nav = useNavigate();
   const loc = useLocation();
 
-  useEffect(() => {
-    api('/countries')
-      .then((c) => {
-        if (Array.isArray(c) && c.length) {
-          // Merge unique by code
-          const map = new Map();
-          c.forEach((item) => map.set(item.code, { ...item, dial: String(item.dial || item.dial_code || '') }));
-          DEFAULT_COUNTRIES.forEach((item) => {
-            if (!map.has(item.code)) map.set(item.code, item);
-          });
-          setCountries(Array.from(map.values()));
-        }
-      })
-      .catch(() => {});
-  }, []);
+  // Country list is the built-in DEFAULT_COUNTRIES (no server route exists).
 
   // Timer for OTP resend countdown
   useEffect(() => {

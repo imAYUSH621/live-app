@@ -242,7 +242,7 @@ r.post('/admin/users/:id/ban', adminAuth('users.ban'), async (req, res) => {
 r.get('/admin/appeals', adminAuth('users.ban'), async (req, res) => {
   const status = ['open', 'resolved', 'rejected'].includes(req.query.status) ? req.query.status : null;
   const rows = await q(
-    `SELECT a.id, a.text, a.payout_method, a.payout_account, a.status, a.note, a.created_at, a.decided_at,
+    `SELECT a.id, a.text, a.status, a.note, a.created_at, a.decided_at,
             u.id AS user_id, u.uid, u.name, u.ban_reason, u.ban_until
        FROM appeals a JOIN users u ON u.id = a.user_id
       ${status ? 'WHERE a.status = $1' : ''} ORDER BY a.created_at DESC LIMIT 200`,

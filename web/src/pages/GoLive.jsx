@@ -41,7 +41,7 @@ export default function GoLive() {
           <div className="card center-text">
             <Icon name="shield" size={48} />
             <h2>Verification Under Review</h2>
-            <p className="muted">Your Aadhaar and live photo verification has been submitted and is currently under review by our Admin team. You can go live as soon as admin approves.</p>
+            <p className="muted">Your ID and selfie verification has been submitted and is currently under manual review by our Admin team. You can go live as soon as admin approves.</p>
             <Link to="/verify" className="btn primary block">View Verification Status</Link>
           </div>
         </div>
@@ -54,7 +54,7 @@ export default function GoLive() {
           <div className="card center-text">
             <Icon name="lock" size={48} />
             <h2>Verification Needs Fix</h2>
-            <p className="muted">Your previous verification needs corrections. Please review the admin note and re-submit your Aadhaar & live selfie.</p>
+            <p className="muted">Your previous verification needs corrections. Please review the admin note and re-submit your ID and selfie.</p>
             <button className="btn primary block" onClick={() => nav('/verify')}>Re-submit Verification</button>
           </div>
         </div>
@@ -66,8 +66,8 @@ export default function GoLive() {
         <div className="card center-text">
           <Icon name="cam" size={48} />
           <h2>Host Verification Required</h2>
-          <p className="muted">To start live streaming and earn diamonds, you must verify your identity with Aadhaar / Govt ID and a live selfie.</p>
-          <button className="btn primary block" onClick={() => nav('/verify')}>Verify Aadhaar & Live Photo</button>
+          <p className="muted">To start live streaming and earn diamonds, you must verify your identity with a Government ID and a selfie. An admin reviews every submission manually.</p>
+          <button className="btn primary block" onClick={() => nav('/verify')}>Verify ID & Selfie</button>
           <Link to="/agency" className="btn ghost block">Join an agency with a code</Link>
         </div>
       </div>

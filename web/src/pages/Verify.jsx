@@ -1,4 +1,4 @@
-// Host identity check: photo of an ID + a live selfie showing a random gesture (taken with the camera, not uploaded).
+// Host identity check: photo of an ID + a selfie taken with the camera. Reviewed manually by an admin; no automated liveness check is performed.
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
@@ -24,7 +24,6 @@ export default function Verify() {
   const [legalName, setLegalName] = useState(me?.user?.name || '');
   const [docNumber, setDocNumber] = useState('');
   const [idFile, setIdFile] = useState(null);
-  const [challenge, setChallenge] = useState('');
   const [selfie, setSelfie] = useState(null);
   const [busy, setBusy] = useState(false);
   const video = useRef();
@@ -37,13 +36,11 @@ export default function Verify() {
 
   const openCamera = async () => {
     try {
-      const c = await api('/kyc/challenge');
-      setChallenge(c.text);
       setStep('camera');
       stream.current = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 720, height: 960 }, audio: false });
       video.current.srcObject = stream.current;
     } catch {
-      toast('Camera permission is needed for the live selfie verification', 'error');
+      toast('Camera permission is needed to take your selfie photo', 'error');
       setStep('form');
     }
   };
@@ -63,7 +60,7 @@ export default function Verify() {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!idFile || !selfie) return toast('Please attach your Aadhaar/ID photo and take a live selfie', 'error');
+    if (!idFile || !selfie) return toast('Please attach your ID photo and take a selfie', 'error');
     setBusy(true);
     try {
       const f = new FormData();
@@ -73,7 +70,7 @@ export default function Verify() {
       f.append('id', idFile);
       f.append('selfie', new File([selfie], 'selfie.jpg', { type: 'image/jpeg' }));
       await api('/kyc', { method: 'POST', form: f });
-      toast('Verification submitted! Admin will review your Aadhaar and live photo.');
+      toast('Verification submitted! An admin will review your ID and selfie manually.');
       setSt(await api('/kyc/me'));
       refresh();
     } catch (err) {
@@ -120,7 +117,7 @@ export default function Verify() {
         <div className="card center-text">
           <Icon name="lock" size={48} />
           <h2>Verification Under Review</h2>
-          <p className="muted">We are reviewing your {st.kyc?.doc_type?.toUpperCase() || 'Aadhaar'} card and live selfie. You will receive an in-app notification once approved.</p>
+          <p className="muted">An admin is manually reviewing your {st.kyc?.doc_type?.toUpperCase() || 'ID'} card and selfie. You will receive an in-app notification once approved.</p>
           <div className="pill" style={{ margin: '12px auto' }}>Submitted {st.kyc?.created_at ? new Date(Number(st.kyc.created_at)).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'recently'}</div>
           <button className="btn ghost block" onClick={() => nav('/me')}>Back to Profile</button>
         </div>
@@ -135,14 +132,14 @@ export default function Verify() {
         <div className="kyc-cam">
           <video ref={video} autoPlay playsInline muted className="mirror" />
           <div className="kyc-oval" />
-          <p className="kyc-prompt">{challenge}</p>
-          <button className="btn primary big" onClick={snap}>Take live selfie</button>
+          <p className="kyc-prompt">Position your face in the oval and take a clear selfie</p>
+          <button className="btn primary big" onClick={snap}>Take selfie</button>
         </div>
       ) : (
         <form className="form" onSubmit={submit}>
           <div className="card">
             <b>Host Identity Verification</b>
-            <p className="muted small">To go live and receive real money gifts, please verify your identity with your Government ID / Aadhaar card and a live camera photo.</p>
+            <p className="muted small">To go live and receive real money gifts, please verify your identity with your Government ID / Aadhaar card and a selfie photo. An admin reviews every submission manually.</p>
             {st.kyc?.status === 'rejected' && (
               <div style={{ marginTop: '8px', padding: '10px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
                 <b style={{ color: '#ef4444' }}>Please fix and re-submit:</b>
@@ -172,7 +169,7 @@ export default function Verify() {
           )}
 
           <button type="button" className={`btn block ${selfie ? '' : 'ghost'}`} onClick={openCamera}>
-            {selfie ? '✓ Live selfie captured (tap to retake)' : '📷 Take Live Camera Selfie'}
+            {selfie ? '✓ Selfie captured (tap to retake)' : '📷 Take Camera Selfie'}
           </button>
           {selfie && (
             <div style={{ margin: '6px 0 12px', display: 'flex', alignItems: 'center', gap: '8px' }}>

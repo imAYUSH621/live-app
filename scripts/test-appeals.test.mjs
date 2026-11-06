@@ -21,12 +21,12 @@ check('appeal route uses allowBanned (banned users can reach it)', /userAuth\(\{
 check('appeal routes mounted', /appealRoutes/.test(index));
 
 // Client contract: every field Banned.jsx reads must be produced by GET /appeal
-for (const field of ['banned', 'banUntil', 'wallet', 'appeals', 'payoutMethods']) {
+for (const field of ['banned', 'banUntil', 'wallet', 'appeals']) {
   check(`GET /appeal produces '${field}' (client reads it)`, new RegExp(`\\b${field}\\b`).test(route) && new RegExp(`d\\.${field}|x\\.${field}`).test(banned));
 }
 check('POST /appeal enforces one open appeal', /already have an appeal under review/.test(route));
+check('appeals collect no payout details (payouts disabled)', !/payoutMethod|payout_method/.test(route) && !/payoutMethods|payout_account/.test(route.replace(/payout_account TEXT|payout_method TEXT/g, '')));
 check('POST /appeal enforces min length 10', /at least 10 characters/.test(route));
-check('POST /appeal validates payout method', /Choose a valid payout method/.test(route));
 
 // Admin side: queue + decision, under the ban permission, with audit
 check('admin appeals list route', /r\.get\('\/admin\/appeals', adminAuth\('users\.ban'\)/.test(admin));
