@@ -51,6 +51,15 @@ const rnd = () => String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 
 async function login(phone) {
+  // Production-safe path: email/password accounts (no dev OTP exists in prod).
+  if (process.env.USE_PASSWORD_AUTH === '1') {
+    const email = `smoke-${phone}@example.com`;
+    const password = `Smoke-${phone}-x9Q`;
+    let r = await call('POST', '/auth/register', null, { email, password, name: 'Smoke ' + phone });
+    if (r.status >= 400) r = await call('POST', '/auth/login', null, { email, password });
+    ok(r, 'password register/login');
+    return { token: r.data.token, user: r.data.user };
+  }
   const s = await call('POST', '/auth/otp/send', null, { phone });
   ok(s, 'otp send');
   const r = await call('POST', '/auth/otp/verify', null, { phone, code: s.data.dev_code, device_id: 'dev-' + phone });
