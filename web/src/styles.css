@@ -1219,7 +1219,8 @@ img { display: block; }
   box-shadow: var(--shadow-sm);
   transition: transform 0.15s, border-color 0.15s;
 }
-.pack:hover { border-color: var(--pink); transform: translateY(-2px); }
+.pack:hover:not(:disabled) { border-color: var(--pink); transform: translateY(-2px); }
+.pack:disabled { opacity: 0.45; cursor: not-allowed; }
 .pack b { font-size: 17px; font-weight: 800; color: var(--text); }
 .bonus { font-size: 11px; color: var(--green); font-weight: 700; }
 .price {

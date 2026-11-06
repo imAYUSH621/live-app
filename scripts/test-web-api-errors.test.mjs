@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 // Repeatable test: web api() maps the server's {error, code} body correctly.
 // Regression guard: it used to read data.message (never sent), so every
 // friendly server error showed as "Something went wrong" and all
@@ -49,5 +50,12 @@ stubFetch(500, {});
 err = await api('/x').catch(e => e);
 check('generic fallback intact', err.message === 'Something went wrong', err.message);
 
+// 6. Recharge pack buttons have a visible disabled state in CSS (the gateway-
+// null path disables every buy button; without styling they looked tappable).
+const css = readFileSync(new URL('../web/src/styles.css', import.meta.url), 'utf8');
+check('pack disabled style present', /\.pack:disabled\s*\{[^}]*opacity/.test(css));
+check('pack hover excluded when disabled', /\.pack:hover:not\(:disabled\)/.test(css));
+
 console.log(failures ? `\n${failures} FAILURES` : '\nALL PASS');
 process.exit(failures ? 1 : 0);
+
