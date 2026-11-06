@@ -27,7 +27,7 @@ jobs:
           java-version: 17
       - name: Install app dependencies
         working-directory: mobile
-        run: npm ci --legacy-peer-deps
+        run: npm ci --legacy-peer-deps --include=dev
       - name: Test native live API contract
         working-directory: mobile
         run: npm run test:live-contract
