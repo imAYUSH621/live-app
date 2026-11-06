@@ -84,7 +84,7 @@ export function useLiveKit(rtc, { isHost, type, videoEl, audioOnly = false, atte
           }
         }
       } catch (e) {
-        if (!cancelled) setState((s) => ({ ...s, error: e.message || 'media connection failed', mediaError: describeMediaError(e) }));
+        if (!cancelled) setState((s) => ({ ...s, error: e.message || 'media connection failed', mediaError: describeMediaError(e, { audioOnly }) }));
       }
     })();
 

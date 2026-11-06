@@ -24,6 +24,21 @@ for (const name of ['NotAllowedError', 'PermissionDeniedError', 'SecurityError']
   check(`${name} -> copy states nothing is publishing`, /nothing is publishing/i.test(d.hint));
 }
 
+// 2b. Audio-only mode: a missing device is the microphone - no misleading audio promise
+{
+  const d = describeMediaError({ name: 'NotFoundError', message: 'x' }, { audioOnly: true });
+  check('audioOnly no-device -> mic-specific title', d.title === 'No microphone found');
+  check('audioOnly no-device -> no audio-only offer in hint', !/audio only/i.test(d.hint));
+  check('audioOnly no-device -> states nothing is publishing', /nothing is publishing/i.test(d.hint));
+  const b = describeMediaError({ name: 'NotReadableError', message: 'x' }, { audioOnly: true });
+  check('audioOnly busy -> mic-specific title', b.title === 'The microphone is busy');
+  check('audioOnly busy -> no audio-only offer in hint', !/audio only/i.test(b.hint));
+}
+const hook2 = readFileSync(new URL('../web/src/live/useLiveKit.js', import.meta.url), 'utf8');
+check('hook passes audioOnly into describeMediaError', hook2.includes('describeMediaError(e, { audioOnly })'));
+const roomSrc = readFileSync(new URL('../web/src/live/Room.jsx', import.meta.url), 'utf8');
+check('audio-only button hidden once already in audioOnly', roomSrc.includes('type === \'video\' && !audioOnly && canFallbackToAudio'));
+
 // 3. Busy-device errors
 for (const name of ['NotReadableError', 'TrackStartError', 'AbortError']) {
   const d = describeMediaError({ name, message: 'Could not start video source' });
@@ -58,7 +73,7 @@ check('Room renders friendly media-error box for hosts', room.includes('av.media
 check('Room has explicit Try again retry', room.includes('Try again'));
 check('Room audio fallback is an explicit button, not silent', room.includes('canFallbackToAudio(av.mediaError.kind)'));
 const hook = readFileSync(new URL('../web/src/live/useLiveKit.js', import.meta.url), 'utf8');
-check('hook maps errors via describeMediaError', hook.includes('describeMediaError(e)'));
+check('hook maps errors via describeMediaError', hook.includes('describeMediaError(e, { audioOnly })'));
 check('hook retry attempt is an effect dep', hook.includes('audioOnly, attempt]'));
 
 // 8. Mobile parity: native setup failure shows the same friendly mapping
