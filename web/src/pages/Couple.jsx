@@ -33,7 +33,7 @@ export default function Couple() {
     setBusy(true); setStatus(''); setError('');
     try {
       if (confirm.kind === 'propose') {
-        await api('/cp/propose', { method: 'POST', body: { user_id: Number(targetId) } });
+        await api('/cp/propose', { method: 'POST', body: { user_id: Number(targetId), expected_coins: price } });
         setSent(true); setStatus('CP proposal sent');
       } else if (confirm.kind === 'end') {
         await api('/cp', { method: 'DELETE' }); setStatus('CP ended');
