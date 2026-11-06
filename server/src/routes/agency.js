@@ -139,4 +139,19 @@ r.post('/agency/tickets', auth, async (req, res) => {
   res.json(await one('INSERT INTO support_tickets(agency_id, subject, body) VALUES ($1,$2,$3) RETURNING *', [req.agency.id, str(req.body.subject, 100), str(req.body.body, 2000)]));
 });
 
+
+// Invite a user to join this agency (user accepts from /agency/invites).
+r.post('/agency/hosts/invite', auth, async (req, res) => {
+  const uid = int(req.body.uid ?? req.body.userId);
+  const target = await one('SELECT id, name FROM users WHERE uid=$1 OR id=$1', [uid]);
+  need(target, 'User not found');
+  const inv = await one(
+    `INSERT INTO agency_invites(agency_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING RETURNING id`,
+    [req.agency.id, target.id]);
+  need(inv, 'An open invite already exists for this user');
+  toUser(target.id, 'notify', { type: 'agency_invite', agency: req.agency.name });
+  await audit(req, 'agency.host_invite', 'user', target.id);
+  res.json({ ok: true, id: inv.id });
+});
+
 export default r;

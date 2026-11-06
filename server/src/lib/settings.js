@@ -54,6 +54,12 @@ export const DEFAULT_SETTINGS = {
     new_host_bonus: 0,
     allow_without_agency: true,
     official_agency_code: 'OFFICIAL',
+    min_withdraw_diamonds: 1000,   // minimum diamonds per withdrawal request
+  },
+  safety: {
+    refund_window_hours: 72,       // accidental-recharge refund window
+    refund_max_per_30d: 1,         // max refund requests per user per 30 days
+    limit_raise_delay_hours: 48,   // cooling-off before a raised daily gift limit applies
   },
   pk: { duration: 300, punishment: 60, min_level: 0 },
   room: {
