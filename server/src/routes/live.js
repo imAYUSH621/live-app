@@ -4,9 +4,10 @@ import { one, q, tx } from '../db.js';
 import { redis } from '../redis.js';
 import { userAuth } from '../lib/auth.js';
 import { need, int, str, notFound, forbidden, bad } from '../lib/util.js';
-import { uploader, fileUrl, uploadRoot } from '../lib/upload.js';
-import { lkToken, kickFromRoom, muteTrack } from '../lib/livekit.js';
+import { uploader, fileUrl, storeUpload, removeUpload, uploadRoot } from '../lib/upload.js';
+import { lkToken, kickFromRoom, muteTrack, AUDIO_ONLY } from '../lib/livekit.js';
 import { getSettings } from '../lib/settings.js';
+import { config } from '../config.js';
 import { changeCoins, changeDiamonds, addHostDiamondStat } from '../lib/wallet.js';
 import { filterText, checkImage, autoReport } from '../lib/moderation.js';
 import { toRoom, toUser, toAdmins } from '../lib/io.js';
@@ -41,7 +42,7 @@ r.get('/live/feed', auth, async (req, res) => {
   if (tab === 'nearby' || tab === 'country') { params.push(str(req.query.country, 3) || req.user.country); where += ` AND r.country=$${params.length}`; }
   if (tab === 'following') { params.push(req.user.id); where += ` AND r.host_id IN (SELECT followee_id FROM follows WHERE follower_id=$${params.length})`; }
   if (tab === 'multi') where += ` AND r.type='multi'`;
-  if (tab === 'party') where += ` AND r.type='party'`;
+  if (tab === 'party' || tab === 'audio') where += ` AND (r.type='party' OR r.type='audio')`;
   if (tab === 'game') where += ` AND r.type='game'`;
   if (tab === 'pk') where += ` AND EXISTS (SELECT 1 FROM pk_battles p WHERE p.status IN ('active','punishment') AND (p.room_a=r.id OR p.room_b=r.id))`;
   if (tab === 'new') where += ` AND h.approved_at > now() - interval '30 days'`;
@@ -76,31 +77,39 @@ r.get('/live/:id', auth, async (req, res) => {
 });
 
 // ---------- go live ----------
-r.post('/live/start', auth, async (req, res) => {
+r.post('/live/start', auth, uploader(['image']).single('cover'), async (req, res) => {
   const s = await getSettings();
   need(s.features.live, 'Live is disabled');
-  const type = ['solo', 'multi', 'party', 'game'].includes(req.body.type) ? req.body.type : 'solo';
+  const b = req.body || {};
+  const rawType = b.type || 'solo';
+  const type = (rawType === 'video' || rawType === 'solo') ? 'solo'
+             : (rawType === 'audio' || rawType === 'party') ? 'party'
+             : ['multi', 'game'].includes(rawType) ? rawType : 'solo';
   if (type === 'multi') need(s.features.multi_guest, 'Multi-guest is disabled');
   if (type === 'party') need(s.features.party_rooms, 'Party rooms are disabled');
   if (type === 'game') need(s.features.game_live, 'Game live is disabled');
-  if (s.room.host_only_live) need(req.user.is_host, 'Only verified hosts can go live. Apply to become a host.');
+  // Production enforces host approval at the route, unconditionally: no settings
+  // row or env flag can waive it there. Non-prod follows the (opt-in gated) setting.
+  const hostOnlyLive = config.nodeEnv === 'production' ? true : s.room.host_only_live;
+  if (hostOnlyLive) need(req.user.is_host, 'Only verified hosts can go live. Apply to become a host.');
   if (req.user.muted_until && new Date(req.user.muted_until) > new Date()) throw forbidden('You are restricted from going live right now');
 
   // one live room per host
   const existing = await one(`SELECT id FROM rooms WHERE host_id=$1 AND status='live'`, [req.user.id]);
   if (existing) await endRoom(existing.id, 'restarted');
 
-  const privacy = ['public', 'password', 'vip', 'ticket'].includes(req.body.privacy) ? req.body.privacy : 'public';
+  const privacy = ['public', 'password', 'vip', 'ticket'].includes(b.privacy) ? b.privacy : 'public';
   const seatsAllowed = type === 'multi' ? s.room.multi_seats : type === 'party' ? [s.room.party_seats] : [0];
-  let seats = int(req.body.seats, seatsAllowed[seatsAllowed.length - 1]);
+  let seats = int(b.seats, seatsAllowed[seatsAllowed.length - 1]);
   if (!seatsAllowed.includes(seats)) seats = seatsAllowed[seatsAllowed.length - 1];
-  const title = (await filterText(str(req.body.title, s.room.max_title))).text || `${req.user.name}'s live`;
+  const title = (await filterText(str(b.title, s.room.max_title))).text || `${req.user.name}'s live`;
+  const coverUrl = req.file ? await storeUpload(req.file) : (b.cover_url || req.user.avatar_url || '/assets/default-cover.jpg');
   const room = await one(
     `INSERT INTO rooms(host_id, type, title, tags, privacy, password, ticket_price, seats, country, livekit_room, cover_url, theme)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-    [req.user.id, type, title, (Array.isArray(req.body.tags) ? req.body.tags : []).slice(0, 5).map((t) => str(t, 20)),
-     privacy, privacy === 'password' ? str(req.body.password, 20) : null, privacy === 'ticket' ? Math.max(1, int(req.body.ticket_price, 10)) : 0,
-     seats, req.user.country, `pending_${Date.now()}_${req.user.id}`, req.user.avatar_url, str(req.body.theme, 20) || 'default'],
+    [req.user.id, type, title, (Array.isArray(b.tags) ? b.tags : []).slice(0, 5).map((t) => str(t, 20)),
+     privacy, privacy === 'password' ? str(b.password, 20) : null, privacy === 'ticket' ? Math.max(1, int(b.ticket_price, 10)) : 0,
+     seats, req.user.country, `pending_${Date.now()}_${req.user.id}`, coverUrl, str(b.theme, 20) || 'default'],
   );
   await q('UPDATE rooms SET livekit_room=$2 WHERE id=$1', [room.id, lkRoomName(room.id)]);
   if (seats > 0) await rs.initSeats(room.id, seats);
@@ -129,6 +138,15 @@ r.post('/live/start', auth, async (req, res) => {
     },
     token,
     livekit_url: livekitUrl(),
+    isHost: true,
+    rtc: {
+      token,
+      livekit_url: livekitUrl(),
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+      ],
+    },
     state,
   });
 });
@@ -137,8 +155,10 @@ r.post('/live/:id/cover', auth, uploader(['image']).single('file'), async (req, 
   const room = await getLiveRoom(req.params.id);
   need(room.host_id === req.user.id, 'Not your room');
   need(req.file, 'Choose an image');
-  await q('UPDATE rooms SET cover_url=$2 WHERE id=$1', [room.id, fileUrl(req.file)]);
-  res.json({ cover_url: fileUrl(req.file) });
+  const url = await storeUpload(req.file);
+  if (room.cover_url && room.cover_url !== url) await removeUpload(room.cover_url);
+  await q('UPDATE rooms SET cover_url=$2 WHERE id=$1', [room.id, url]);
+  res.json({ cover_url: url });
 });
 
 // Host app uploads a snapshot every ~60s -> admin live grid + optional AI moderation
@@ -146,7 +166,7 @@ r.post('/live/:id/thumbnail', auth, uploader(['image']).single('file'), async (r
   const room = await getLiveRoom(req.params.id);
   need(room.host_id === req.user.id && room.status === 'live', 'Not your live room');
   need(req.file, 'No frame');
-  await q('UPDATE rooms SET thumbnail_url=$2, thumb_at=now() WHERE id=$1', [room.id, fileUrl(req.file)]);
+  await q('UPDATE rooms SET thumbnail_url=$2, thumb_at=now() WHERE id=$1', [room.id, await storeUpload(req.file, { keepLocal: true })]);
   await redis.set(`hb:room:${room.id}`, Date.now(), 'EX', 120);
   res.json({ ok: true });
   const verdict = await checkImage(path.join(uploadRoot, fileUrl(req.file).replace('/uploads/', '')));
@@ -202,9 +222,17 @@ r.post('/live/:id/join', auth, async (req, res) => {
   }
   await redis.set(`ra:${room.id}:${req.user.id}`, '1', 'EX', 6 * 3600); // lets the socket join this room
   const seats = await rs.getSeats(room.id);
-  const onSeat = seats.some((s) => Number(s.user_id) === req.user.id);
+  const mySeat = seats.find((s) => Number(s.user_id) === req.user.id);
+  const onSeat = !!mySeat;
+  // Least privilege: a muted seat never gets a publish grant, and publish-capable
+  // tokens expire quickly so a removed seat cannot replay an old token for long.
+  // (LiveKit has no token revocation; removal also force-disconnects the session.)
+  const canPublish = isHost || (onSeat && !mySeat.muted);
   const token = await lkToken({
-    room: lkRoomName(room.id), identity: req.user.id, name: req.user.name, publish: isHost || onSeat,
+    room: lkRoomName(room.id), identity: req.user.id, name: req.user.name, publish: canPublish,
+    // audio (party) rooms: seated guests get a microphone, never a camera
+    sources: canPublish && !isHost && room.type === 'party' ? AUDIO_ONLY : undefined,
+    ttl: canPublish && !isHost ? '15m' : '6h',
     metadata: { role: isHost ? 'host' : 'viewer' },
   });
   const state = await roomState(room, req.user.id);
@@ -219,6 +247,15 @@ r.post('/live/:id/join', auth, async (req, res) => {
     },
     token,
     livekit_url: livekitUrl(),
+    isHost,
+    rtc: {
+      token,
+      livekit_url: livekitUrl(),
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+      ],
+    },
     state,
   });
 });
@@ -341,6 +378,18 @@ r.post('/live/:id/seats/invite', auth, async (req, res) => {
 
 r.post('/live/:id/seats/take', auth, async (req, res) => {
   const room = await getLiveRoom(req.params.id);
+  // Fail closed: seat publishing relies on the SFU webhook to revoke stale
+  // publish grants. Production requires BOTH a configured webhook URL AND
+  // observed signature-verified delivery from the SFU (any room's lifecycle
+  // events prove the path; no seat needs to exist first). A typo'd or
+  // unreachable webhook URL therefore keeps seats off instead of silently
+  // shipping the revocation gap.
+  if (config.nodeEnv === 'production') {
+    const delivered = config.livekit.webhookUrl && (await redis.get('lk:webhook:delivered'));
+    if (!delivered) {
+      return res.status(503).json({ error: 'Guest seats are temporarily unavailable', code: 'seats_disabled' });
+    }
+  }
   const invited = await redis.get(`seatinvite:${room.id}:${req.user.id}`);
   need(invited || room.type === 'party', 'You need an invite from the host');
   await redis.del(`seatinvite:${room.id}:${req.user.id}`);
@@ -357,7 +406,7 @@ r.post('/live/:id/seats/leave', auth, async (req, res) => {
 r.post('/live/:id/seats/remove', auth, async (req, res) => {
   const room = await getLiveRoom(req.params.id);
   await requireAdminOf(room, req.user.id);
-  await removeFromSeat(room, int(req.body.user_id));
+  await removeFromSeat(room, int(req.body.user_id), { kick: true });
   res.json({ ok: true });
 });
 
@@ -465,7 +514,22 @@ r.post('/pk/:pkId/quit', auth, async (req, res) => {
   res.json({ ok: true });
 });
 
-r.get('/pk/:pkId', auth, async (req, res) => res.json(await pkInfo(int(req.params.pkId), req.user.id)));
+r.get('/pk/:pkId', auth, async (req, res) => {
+  const pkId = int(req.params.pkId);
+  const pkRow = await one('SELECT * FROM pk_battles WHERE id=$1', [pkId]);
+  need(pkRow && !['ended', 'declined'].includes(pkRow.status), 'PK not found', 404);
+  // Tokens to watch both PK rooms are issued only to active members of one of
+  // the two rooms: its host, someone seated, or a viewer who actually joined.
+  const uid = req.user.id;
+  const isHost = Number(pkRow.host_a) === uid || Number(pkRow.host_b) === uid;
+  const viewers = new Set([...(await rs.viewerIds(pkRow.room_a)), ...(await rs.viewerIds(pkRow.room_b))]);
+  const seats = [...(await rs.getSeats(pkRow.room_a)), ...(await rs.getSeats(pkRow.room_b))];
+  const seated = seats.some((st) => Number(st.user_id) === uid);
+  // REST join grants room access (ra: key) before the socket connects
+  const joined = (await redis.get(`ra:${pkRow.room_a}:${uid}`)) || (await redis.get(`ra:${pkRow.room_b}:${uid}`));
+  need(isHost || viewers.has(uid) || seated || !!joined, 'Join one of the PK rooms first', 403);
+  res.json(await pkInfo(pkId, uid));
+});
 
 // ---------- red packets (lucky bag) ----------
 r.post('/live/:id/redpacket', auth, async (req, res) => {

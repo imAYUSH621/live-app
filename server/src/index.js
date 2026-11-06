@@ -1,6 +1,7 @@
 import express from 'express';
 import http from 'node:http';
 import path from 'node:path';
+import fs from 'node:fs';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -12,10 +13,11 @@ import { seed } from './seed.js';
 import { syncFxLibrary, FX_DIR } from './fxLibrary.js';
 import { initSocket } from './socket.js';
 import { startJobs } from './jobs.js';
-import { uploadRoot } from './lib/upload.js';
+import { uploadRoot, privateRoot, privateUploadAuth, cloudinaryEnabled, cloudinaryHealthy } from './lib/upload.js';
 import { getSettings } from './lib/settings.js';
 import { verifyToken } from './lib/auth.js';
 import { livekitHealthy } from './lib/livekit.js';
+import { livekitWebhook } from './routes/livekit-webhook.js';
 import { razorpayWebhookValid, creditOrder } from './services/recharge.js';
 import { one } from './db.js';
 
@@ -28,13 +30,16 @@ import storeRoutes from './routes/store.js';
 import socialRoutes from './routes/social.js';
 import discoverRoutes from './routes/discover.js';
 import hostRoutes from './routes/host.js';
+import safetyRoutes from './routes/safety.js';
 import agencyRoutes from './routes/agency.js';
 import sellerRoutes from './routes/seller.js';
 import adminRoutes from './routes/admin.js';
+import testArtifactRoutes from './routes/test-artifact.js';
 import adminContentRoutes from './routes/admin-content.js';
 import adminModRoutes from './routes/admin-mod.js';
 import adminFinanceRoutes from './routes/admin-finance.js';
 import bondRoutes from './routes/bonds.js';
+import kycRoutes from './routes/kyc.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -57,15 +62,42 @@ app.post('/api/webhooks/razorpay', express.raw({ type: '*/*', limit: '1mb' }), a
   res.json({ ok: true });
 });
 
+// LiveKit SFU lifecycle webhook reconciles stale publish grants (raw body for signature)
+app.post('/api/livekit/webhook', express.raw({ type: '*/*', limit: '1mb' }), livekitWebhook);
+
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-app.use('/uploads', express.static(uploadRoot, { maxAge: '30d', immutable: true }));
+const privateStaticOpts = {
+  index: false, dotfiles: 'deny', fallthrough: false, maxAge: 0,
+  setHeaders: (res) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'no-store');
+  },
+};
+app.use('/uploads-private/kyc', privateUploadAuth('kyc'), express.static(path.join(privateRoot, 'kyc'), privateStaticOpts));
+app.use('/uploads-private/reports', privateUploadAuth('reports'), express.static(path.join(privateRoot, 'reports'), privateStaticOpts));
+// Never leak the admin-only private subtree through the public static mount.
+app.use('/uploads', (req, res, next) => (req.path === '/private' || req.path.startsWith('/private/')) ? res.status(404).end() : next(),
+  express.static(uploadRoot, { maxAge: '30d', immutable: true, fallthrough: false, index: false, dotfiles: 'deny' }));
 // premium animation library (SVGA gifts, entry effects, 3D icons) — loaded on demand, cached a year
 app.use('/fx', express.static(FX_DIR, { maxAge: '365d', immutable: true }));
 app.use('/static', express.static(path.resolve('public'), { maxAge: '30d' }));
 
+// Built frontends served same-origin when present (the Render blueprint builds
+// them): the user web app (web/dist) at / and the admin panel (admin/dist) at
+// /panel. Both clients default to this same service's /api, so no extra config.
+const webDist = process.env.WEB_DIST || path.resolve('../web/dist');
+const adminDist = process.env.ADMIN_DIST || path.resolve('../admin/dist');
+const webIndex = path.join(webDist, 'index.html');
+const adminIndex = path.join(adminDist, 'index.html');
+const hasWeb = fs.existsSync(webIndex);
+const hasAdmin = fs.existsSync(adminIndex);
+if (hasAdmin) app.use('/panel', express.static(adminDist, { maxAge: '1h', index: false }));
+if (hasWeb) app.use(express.static(webDist, { maxAge: '1h', index: false }));
+
 app.get('/', (_req, res) => {
+  if (hasWeb) return res.sendFile(webIndex);
   res.json({
     status: 'online',
     app: config.appName,
@@ -78,7 +110,20 @@ app.get('/', (_req, res) => {
 app.get('/api/health', async (_req, res) => {
   const db = await pool.query('SELECT 1').then(() => true).catch(() => false);
   const rd = (await redis.ping().catch(() => '')) === 'PONG';
-  res.status(db && rd ? 200 : 503).json({ ok: db && rd, db, redis: rd, livekit: await livekitHealthy() });
+  const webhookDelivered = !!(await redis.get('lk:webhook:delivered').catch(() => null));
+  res.status(db && rd ? 200 : 503).json({
+    ok: db && rd, db, redis: rd, livekit: await livekitHealthy(),
+    livekit_webhook: { configured: !!config.livekit.webhookUrl, delivered: webhookDelivered },
+    // Media persistence is observable on purpose: on hosts without a
+    // persistent disk the local backend loses uploads on restart/redeploy.
+    storage: {
+      backend: cloudinaryEnabled() ? 'cloudinary' : 'local',
+      // False when uploads actually land on local disk - either no cloud
+      // backend configured, or the configured one is failing (degraded).
+      persistent: cloudinaryEnabled() && cloudinaryHealthy(),
+      degraded: cloudinaryEnabled() && !cloudinaryHealthy(),
+    },
+  });
 });
 
 // Maintenance mode: blocks app users (admin/agency/seller panels keep working)
@@ -105,9 +150,22 @@ app.use('/api', (req, _res, next) => {
 
 app.use('/api/auth', authRoutes);
 for (const r of [discoverRoutes, userRoutes, liveRoutes, callRoutes, walletRoutes, storeRoutes, socialRoutes, hostRoutes,
-  agencyRoutes, sellerRoutes, bondRoutes, adminRoutes, adminContentRoutes, adminModRoutes, adminFinanceRoutes]) app.use('/api', r);
+  safetyRoutes, agencyRoutes, sellerRoutes, bondRoutes, kycRoutes, adminRoutes, adminContentRoutes, adminModRoutes, adminFinanceRoutes, testArtifactRoutes]) app.use('/api', r);
 
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found' }));
+
+// SPA fallbacks for client-side routes; API/upload/static mounts are already
+// registered above, so only unmatched non-API GETs land here.
+app.use('/panel', (req, res, next) => {
+  if (!hasAdmin || req.method !== 'GET') return next();
+  res.sendFile(adminIndex);
+});
+const NO_SPA_PREFIXES = ['/api', '/uploads', '/uploads-private', '/fx', '/static', '/socket.io'];
+app.get('/*splat', (req, res, next) => {
+  if (!hasWeb) return next();
+  if (NO_SPA_PREFIXES.some((p) => req.path === p || req.path.startsWith(p + '/'))) return next();
+  res.sendFile(webIndex);
+});
 
 // errors -> JSON
 // eslint-disable-next-line no-unused-vars

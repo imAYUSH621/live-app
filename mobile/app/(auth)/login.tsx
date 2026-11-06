@@ -25,6 +25,12 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [guestLoading, setGuestLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [mode, setMode] = useState<'phone' | 'email'>('phone');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [isRegister, setIsRegister] = useState(false);
+  const [agree, setAgree] = useState(false);
 
   const setAuth = useAuthStore((s) => s.setAuth);
 
@@ -71,6 +77,30 @@ export default function LoginScreen() {
     }
   };
 
+  const handleEmailAuth = async () => {
+    if (!agree) {
+      setToastMessage('Please confirm you are 18+ and accept the terms');
+      return;
+    }
+    if (!email.includes('@') || password.length < 6) {
+      setToastMessage('Enter a valid email and a password of at least 6 characters');
+      return;
+    }
+    setLoading(true);
+    try {
+      const deviceId = await getDeviceId();
+      const res = isRegister
+        ? await authApi.emailRegister({ email: email.trim().toLowerCase(), password, name: displayName.trim() || undefined, device_id: deviceId })
+        : await authApi.emailLogin({ email: email.trim().toLowerCase(), password, device_id: deviceId });
+      await setAuth(res.token, res.user);
+      router.replace('/(tabs)');
+    } catch (err: any) {
+      setToastMessage(err?.message || (isRegister ? 'Registration failed' : 'Sign in failed'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
@@ -96,6 +126,81 @@ export default function LoginScreen() {
           <View style={styles.card}>
             <Text style={styles.cardHeader}>Sign In or Register</Text>
 
+            <TouchableOpacity onPress={() => setMode(mode === 'phone' ? 'email' : 'phone')} style={styles.referralToggle}>
+              <Text style={styles.referralToggleText}>
+                {mode === 'phone' ? 'Use email instead' : 'Use phone instead'}
+              </Text>
+            </TouchableOpacity>
+
+            {mode === 'email' && (
+              <>
+                {isRegister && (
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Display Name</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Your name"
+                      placeholderTextColor={colors.text.muted}
+                      maxLength={40}
+                      value={displayName}
+                      onChangeText={setDisplayName}
+                      editable={!loading && !guestLoading}
+                    />
+                  </View>
+                )}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Email</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="you@example.com"
+                    placeholderTextColor={colors.text.muted}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    maxLength={120}
+                    value={email}
+                    onChangeText={setEmail}
+                    editable={!loading && !guestLoading}
+                  />
+                </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Password</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder={isRegister ? 'At least 6 characters' : 'Your password'}
+                    placeholderTextColor={colors.text.muted}
+                    secureTextEntry
+                    maxLength={72}
+                    value={password}
+                    onChangeText={setPassword}
+                    editable={!loading && !guestLoading}
+                  />
+                </View>
+                <TouchableOpacity onPress={() => setIsRegister(!isRegister)} style={styles.referralToggle}>
+                  <Text style={styles.referralToggleText}>
+                    {isRegister ? 'Already have an account? Sign in' : 'New here? Create an account'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setAgree(!agree)} style={styles.consentRow}>
+                  <View style={[styles.consentBox, agree && styles.consentBoxOn]}>{agree && <Text style={styles.consentTick}>✓</Text>}</View>
+                  <Text style={styles.consentText}>
+                    I confirm I am <Text style={styles.highlightText}>18+ years old</Text> and accept the Terms of Service & Privacy Policy
+                  </Text>
+                </TouchableOpacity>
+                <Button
+                  title={isRegister ? 'Create Account' : 'Sign In'}
+                  variant="gold"
+                  size="lg"
+                  loading={loading}
+                  disabled={guestLoading}
+                  onPress={handleEmailAuth}
+                  style={styles.sendButton}
+                />
+              </>
+            )}
+
+            {mode === 'phone' && (
+            <>
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Phone Number</Text>
               <View style={styles.phoneRow}>
@@ -149,6 +254,8 @@ export default function LoginScreen() {
               onPress={handleSendOtp}
               style={styles.sendButton}
             />
+            </>
+            )}
 
             <View style={styles.dividerBox}>
               <View style={styles.dividerLine} />
@@ -309,6 +416,36 @@ const styles = StyleSheet.create({
   referralToggle: {
     marginBottom: spacing.md,
     alignSelf: 'flex-start',
+  },
+  consentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  consentBox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: colors.border.medium,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  consentBoxOn: {
+    backgroundColor: colors.gold.light,
+    borderColor: colors.gold.light,
+  },
+  consentTick: {
+    color: '#1a1207',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  consentText: {
+    flex: 1,
+    color: colors.text.muted,
+    fontSize: typography.sizes.xs,
+    lineHeight: typography.lineHeights.xs,
   },
   referralToggleText: {
     color: colors.gold.light,

@@ -18,6 +18,7 @@ import { requestLiveStreamPermissions } from '../../src/utils/permissions';
 import { liveApi } from '../../src/api/endpoints';
 import { liveKitService } from '../../src/realtime/livekit';
 import { useLiveRoomStore } from '../../src/stores/liveRoomStore';
+import { useAuthStore } from '../../src/stores/authStore';
 
 const CATEGORIES = ['Chat', 'Music', 'PK Battle', 'Gaming', 'Dance', 'Lifestyle'];
 
@@ -29,6 +30,13 @@ export default function GoLiveScreen() {
   const [permissionGranted, setPermissionGranted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const user = useAuthStore((st) => st.user);
+
+  // Host verification gate (consistent with web GoLive): only approved hosts
+  // may start a stream. Server-side enforcement comes from the
+  // host_only_live setting; this screen is the user-facing gate.
+  const hostStatus = user?.hostStatus ?? (user?.is_host || user?.isHost ? 'approved' : 'none');
+  const isApprovedHost = Boolean(user?.verified && hostStatus === 'approved');
 
   useEffect(() => {
     (async () => {
@@ -38,6 +46,16 @@ export default function GoLiveScreen() {
   }, []);
 
   const handleStartStream = async () => {
+    if (!isApprovedHost) {
+      setToastMessage(
+        hostStatus === 'pending'
+          ? 'Your host verification is under review'
+          : hostStatus === 'suspended'
+            ? 'Your host account is suspended'
+            : 'Complete host verification before going live'
+      );
+      return;
+    }
     if (!title.trim()) {
       setToastMessage('Please enter a stream title');
       return;
@@ -78,6 +96,33 @@ export default function GoLiveScreen() {
   const toggleCameraFacing = () => {
     setFacing((prev) => (prev === 'front' ? 'back' : 'front'));
   };
+
+  // Verification gate: unverified users see a blocking panel instead of the
+  // go-live form, mirroring the web GoLive gate.
+  if (user && !isApprovedHost) {
+    const gateTitle =
+      hostStatus === 'pending' ? 'Verification Under Review'
+      : hostStatus === 'suspended' ? 'Host Account Suspended'
+      : hostStatus === 'rejected' ? 'Verification Rejected'
+      : 'Host Verification Required';
+    const gateBody =
+      hostStatus === 'pending' ? 'Your verification has been submitted and is currently under review by the admin team. You can go live once approved.'
+      : hostStatus === 'suspended' ? 'Your host broadcasting privileges have been suspended by admin.'
+      : hostStatus === 'rejected' ? 'Your verification was rejected. Please contact your agency or support to re-apply.'
+      : 'To start live streaming and earn diamonds, complete host identity verification first.';
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={gateStyles.container}>
+          <Text style={gateStyles.icon}>🛡️</Text>
+          <Text style={gateStyles.title}>{gateTitle}</Text>
+          <Text style={gateStyles.body}>{gateBody}</Text>
+          <TouchableOpacity style={gateStyles.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
+            <Text style={gateStyles.backBtnText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -348,3 +393,12 @@ const styles = StyleSheet.create({
   },
 });
 
+
+const gateStyles = StyleSheet.create({
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg, backgroundColor: colors.background.base },
+  icon: { fontSize: 48, marginBottom: spacing.md },
+  title: { fontSize: typography.sizes.xl, fontWeight: typography.weights.bold, color: colors.text.primary, textAlign: 'center', marginBottom: spacing.sm },
+  body: { fontSize: typography.sizes.md, color: colors.text.secondary, textAlign: 'center', lineHeight: typography.lineHeights.md, marginBottom: spacing.lg },
+  backBtn: { backgroundColor: colors.gold.primary, paddingVertical: spacing.sm, paddingHorizontal: spacing.xl, borderRadius: radii.full },
+  backBtnText: { fontSize: typography.sizes.md, fontWeight: typography.weights.bold, color: colors.text.inverse },
+});

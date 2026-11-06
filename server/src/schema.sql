@@ -714,3 +714,70 @@ CREATE TABLE IF NOT EXISTS fan_clubs (
   PRIMARY KEY (host_id, user_id)
 );
 CREATE INDEX IF NOT EXISTS fan_clubs_user ON fan_clubs(user_id);
+
+-- ---------- User safety: spend limits, recharge refunds, host withdrawals, agency invites ----------
+ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_limit_coins BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_limit_coins BIGINT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_limit_at TIMESTAMPTZ;
+ALTER TABLE hosts ADD COLUMN IF NOT EXISTS agency_joined_at TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS refund_requests (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id),
+  order_id BIGINT NOT NULL REFERENCES recharge_orders(id) UNIQUE,  -- one refund per order (idempotency)
+  coins BIGINT NOT NULL,
+  reason TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'open',        -- open | approved | rejected
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  decided_at TIMESTAMPTZ,
+  decided_by BIGINT
+);
+CREATE INDEX IF NOT EXISTS refund_requests_user ON refund_requests(user_id, created_at);
+
+CREATE TABLE IF NOT EXISTS withdrawals (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id),
+  diamonds BIGINT NOT NULL,
+  amount NUMERIC(12,2) NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'INR',
+  method TEXT NOT NULL,
+  account TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'requested',   -- requested | paid | rejected
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  decided_at TIMESTAMPTZ,
+  note TEXT
+);
+CREATE INDEX IF NOT EXISTS withdrawals_user ON withdrawals(user_id, created_at);
+
+CREATE TABLE IF NOT EXISTS agency_invites (
+  id BIGSERIAL PRIMARY KEY,
+  agency_id BIGINT NOT NULL REFERENCES agencies(id),
+  user_id BIGINT NOT NULL REFERENCES users(id),
+  status TEXT NOT NULL DEFAULT 'invited',     -- invited | accepted | declined
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  decided_at TIMESTAMPTZ
+);
+CREATE UNIQUE INDEX IF NOT EXISTS agency_invites_open ON agency_invites(agency_id, user_id) WHERE status = 'invited';
+
+-- Test-artifact delivery: admin-uploaded binaries reachable only through
+-- short-lived random-token links (hash stored, token never persisted).
+CREATE TABLE IF NOT EXISTS test_artifacts (
+  id BIGSERIAL PRIMARY KEY,
+  filename TEXT NOT NULL,
+  mime TEXT NOT NULL DEFAULT 'application/octet-stream',
+  size BIGINT NOT NULL,
+  sha256 TEXT NOT NULL,
+  storage_path TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE test_artifacts ADD COLUMN IF NOT EXISTS data BYTEA;
+ALTER TABLE test_artifacts ALTER COLUMN storage_path DROP NOT NULL;
+
+CREATE TABLE IF NOT EXISTS test_artifact_links (
+  id BIGSERIAL PRIMARY KEY,
+  artifact_id BIGINT NOT NULL REFERENCES test_artifacts(id),
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  downloads INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

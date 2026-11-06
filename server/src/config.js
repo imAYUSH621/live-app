@@ -20,11 +20,23 @@ export const config = {
   jwtSecret: env('JWT_SECRET', 'change-me-in-production'),
   uploadDir: env('UPLOAD_DIR', './uploads'),
   maxUploadMb: Number(env('MAX_UPLOAD_MB', 25)),
+  // Staging-only test-artifact delivery (PR #15); fail-closed unless explicitly enabled.
+  testArtifactsEnabled: env('TEST_ARTIFACTS_ENABLED', '') === 'true',
+  storageBackend: env('STORAGE_BACKEND', 'local'),
+  cloudinary: {
+    cloudName: env('CLOUDINARY_CLOUD_NAME', ''),
+    apiKey: env('CLOUDINARY_API_KEY', ''),
+    apiSecret: env('CLOUDINARY_API_SECRET', ''),
+  },
   livekit: {
     url: env('LIVEKIT_URL', 'ws://localhost:7880'),            // what clients connect to (wss://live.yourdomain.com)
     apiUrl: env('LIVEKIT_API_URL', env('LIVEKIT_URL', 'http://localhost:7880').replace(/^wss:/i, 'https:').replace(/^ws:/i, 'http:')),   // what the server calls internally
     apiKey: env('LIVEKIT_API_KEY', 'devkey'),
     apiSecret: env('LIVEKIT_API_SECRET', 'secret'),
+    // URL the deployed SFU posts lifecycle webhooks to (this server's
+    // /api/livekit/webhook). Seat publishing in production is fail-closed
+    // without it: the webhook is what force-reconciles stale publish grants.
+    webhookUrl: env('LIVEKIT_WEBHOOK_URL', ''),
   },
   turn: {
     urls: env('TURN_URLS', ''),                                 // e.g. turn:turn.yourdomain.com:3478?transport=udp,turn:turn.yourdomain.com:3478?transport=tcp
@@ -46,3 +58,9 @@ export const config = {
 };
 
 export const isProd = config.nodeEnv === 'production';
+
+// Fail closed in production: weak development defaults must never serve real users.
+if (isProd) {
+  if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET must be set explicitly in production');
+  if (!process.env.ADMIN_PASSWORD) throw new Error('ADMIN_PASSWORD must be set explicitly in production');
+}

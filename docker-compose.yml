@@ -20,6 +20,7 @@ services:
   api:
     build: ./server
     restart: unless-stopped
+    ports: ["127.0.0.1:4000:4000"]   # localhost only: lets host-networked LiveKit post signed webhooks
     env_file: .env
     environment:
       DATABASE_URL: postgres://liveapp:${POSTGRES_PASSWORD}@postgres:5432/liveapp

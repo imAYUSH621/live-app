@@ -1,17 +1,4 @@
-# Builds the user app + admin panel, then serves them (and proxies the API) with Caddy (automatic HTTPS).
-FROM node:20-alpine AS build
-WORKDIR /build
-COPY web/package.json web/package-lock.json ./web/
-COPY admin/package.json admin/package-lock.json ./admin/
-RUN cd web && npm ci && cd ../admin && npm ci
-COPY web ./web
-COPY admin ./admin
-ARG APP_NAME=LiveApp
-RUN sed -i "s/<title>LiveApp<\/title>/<title>${APP_NAME}<\/title>/" web/index.html \
- && sed -i "s/\"LiveApp\"/\"${APP_NAME}\"/g" web/public/manifest.webmanifest \
- && cd web && npm run build && cd ../admin && npm run build
-
 FROM caddy:2-alpine
-COPY --from=build /build/web/dist /srv/web
-COPY --from=build /build/admin/dist /srv/admin
+COPY web/dist /srv/web
+COPY admin/dist /srv/admin
 COPY deploy/Caddyfile /etc/caddy/Caddyfile

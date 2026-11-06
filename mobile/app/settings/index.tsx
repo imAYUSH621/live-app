@@ -127,6 +127,11 @@ export default function SettingsScreen() {
         {/* General Options */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>APP & SYSTEM</Text>
+          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/settings/safety' as any)}>
+            <Text style={styles.navLabel}>Safety & Refunds</Text>
+            <Text style={styles.navDetail}>Daily limit, refunds, support ›</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.navRow} onPress={handleClearCache}>
             <Text style={styles.navLabel}>Clear Temporary Cache</Text>
             <Text style={styles.navDetail}>18.4 MB ›</Text>

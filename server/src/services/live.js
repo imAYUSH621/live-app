@@ -3,7 +3,7 @@ import { redis } from '../redis.js';
 import * as rs from './roomstate.js';
 import { miniProfile, miniProfiles } from './profile.js';
 import { toRoom, toUser } from '../lib/io.js';
-import { closeRoom, lkToken, setPublish } from '../lib/livekit.js';
+import { closeRoom, lkToken, setPublish, kickFromRoom } from '../lib/livekit.js';
 import { getSettings } from '../lib/settings.js';
 import { config } from '../config.js';
 import { bumpTask } from './tasks.js';
@@ -49,8 +49,8 @@ export async function pkInfo(pkId, viewerId) {
   };
   if (viewerId) {
     // token to watch BOTH sides (subscribe only) — the client opens a 2nd connection for the opponent
-    info.token_a = await lkToken({ room: info.livekit_a, identity: `${viewerId}`, name: 'viewer', publish: false });
-    info.token_b = await lkToken({ room: info.livekit_b, identity: `${viewerId}`, name: 'viewer', publish: false });
+    info.token_a = await lkToken({ room: info.livekit_a, identity: `${viewerId}`, name: 'viewer', publish: false, ttl: '15m' });
+    info.token_b = await lkToken({ room: info.livekit_b, identity: `${viewerId}`, name: 'viewer', publish: false, ttl: '15m' });
   }
   return info;
 }
@@ -168,7 +168,20 @@ export async function placeOnSeat(room, userId, seatNo) {
   return seats;
 }
 
-export async function removeFromSeat(room, userId) {
+/**
+ * Is this user currently entitled to PUBLISH in this room?
+ * Host always is; a guest only while actively seated and not seat-muted.
+ * Used by the LiveKit webhook to reconcile joins made with stale tokens.
+ */
+export async function publishEntitlement(room, userId) {
+  if (!room || room.status !== 'live') return false;
+  if (Number(room.host_id) === Number(userId)) return true;
+  const seats = await rs.getSeats(room.id);
+  const seat = seats.find((s) => Number(s.user_id) === Number(userId));
+  return !!seat && !seat.muted;
+}
+
+export async function removeFromSeat(room, userId, { kick = false } = {}) {
   const seats = await rs.getSeats(room.id);
   const seat = seats.find((s) => Number(s.user_id) === Number(userId));
   if (!seat) return seats;
@@ -176,6 +189,9 @@ export async function removeFromSeat(room, userId) {
   seat.muted = false;
   await rs.setSeats(room.id, seats);
   await setPublish(lkRoomName(room.id), userId, false);
+  // Forced removal also drops the live SFU session: otherwise the removed user
+  // keeps publishing until their (old, publish-capable) token session ends.
+  if (kick) await kickFromRoom(lkRoomName(room.id), userId);
   await broadcastSeats(room.id, seats);
   toUser(userId, 'seat:removed', { room_id: room.id });
   return seats;

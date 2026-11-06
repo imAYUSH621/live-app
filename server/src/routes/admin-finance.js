@@ -4,7 +4,7 @@ import { one, q, tx } from '../db.js';
 import { adminAuth } from '../lib/auth.js';
 import { need, str, int, notFound, page, monthOf, bad } from '../lib/util.js';
 import { audit } from '../lib/audit.js';
-import { changeCoins } from '../lib/wallet.js';
+import { changeCoins, changeDiamonds } from '../lib/wallet.js';
 import { toUser } from '../lib/io.js';
 import { creditOrder } from '../services/recharge.js';
 import { runSettlement, approveSettlement, runAgencyCommissions } from '../services/settlement.js';
@@ -49,7 +49,10 @@ r.post('/admin/orders/:id/refund', adminAuth('finance'), async (req, res) => {
   const o = await one('SELECT * FROM recharge_orders WHERE id=$1', [int(req.params.id)]);
   need(o && o.status === 'paid', 'Only paid orders can be refunded');
   await tx(async (c) => {
-    await c.q(`UPDATE recharge_orders SET status='refunded' WHERE id=$1`, [o.id]);
+    // Guard the transition inside the transaction: if a user refund request (or another
+    // admin refund) moved the order out of 'paid' since we read it, fail instead of double-debiting.
+    const moved = await c.one(`UPDATE recharge_orders SET status='refunded' WHERE id=$1 AND status='paid' RETURNING id`, [o.id]);
+    need(moved, 'Order already refunded or a refund request is in progress');
     // take back as many of those coins as are left; freeze if already spent
     const u = await c.one('SELECT coins FROM users WHERE id=$1 FOR UPDATE', [o.user_id]);
     const take = Math.min(Number(u.coins), Number(o.coins));
@@ -213,13 +216,20 @@ r.get('/admin/ledger', adminAuth('finance'), async (req, res) => {
 r.get('/admin/finance/summary', adminAuth('finance'), async (req, res) => {
   const from = req.query.from || new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
   const to = req.query.to || new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+  // `to` is an inclusive calendar date from the UI; the SQL compares against the next day.
   const byType = await q(
-    `SELECT currency, type, sum(amount)::bigint AS amount, count(*)::int AS n FROM ledger WHERE created_at >= $1 AND created_at < $2 GROUP BY 1,2 ORDER BY 1,2`, [from, to]);
-  const revenue = await q(`SELECT gateway, currency, sum(amount)::numeric AS amount, count(*)::int AS orders FROM recharge_orders WHERE status='paid' AND paid_at >= $1 AND paid_at < $2 GROUP BY 1,2`, [from, to]);
+    // Date-range semantics: `from`/`to` are inclusive calendar dates. `to` is
+    // extended by one day and compared strictly, so the whole end date counts
+    // (a bare `created_at < to` silently dropped the end day). The `$n::date`
+    // casts resolve day boundaries in the DB session TimeZone (Postgres GUC;
+    // this deployment runs Asia/Calcutta), and created_at is timestamptz, so
+    // ranges follow server-local days. Regression: test/finance_summary_dates.mjs.
+    `SELECT currency, type, sum(amount)::bigint AS amount, count(*)::int AS n FROM ledger WHERE created_at >= $1::date AND created_at < $2::date + 1 GROUP BY 1,2 ORDER BY 1,2`, [from, to]);
+  const revenue = await q(`SELECT gateway, currency, sum(amount)::numeric AS amount, count(*)::int AS orders FROM recharge_orders WHERE status='paid' AND paid_at >= $1::date AND paid_at < $2::date + 1 GROUP BY 1,2`, [from, to]);
   const liability = await one(`SELECT sum(coins)::bigint AS coins, sum(diamonds)::bigint AS diamonds FROM users WHERE status<>'deleted'`);
   const sellerFloat = await one(`SELECT coalesce(sum(balance),0)::bigint AS coins FROM coin_sellers`);
-  const salaries = await q(`SELECT status, sum(total)::numeric AS amount, count(*)::int AS n FROM host_settlements WHERE created_at >= $1 AND created_at < $2 GROUP BY status`, [from, to]);
-  const commissions = await q(`SELECT status, sum(total)::numeric AS amount FROM agency_commissions WHERE created_at >= $1 AND created_at < $2 GROUP BY status`, [from, to]);
+  const salaries = await q(`SELECT status, sum(total)::numeric AS amount, count(*)::int AS n FROM host_settlements WHERE created_at >= $1::date AND created_at < $2::date + 1 GROUP BY status`, [from, to]);
+  const commissions = await q(`SELECT status, sum(total)::numeric AS amount FROM agency_commissions WHERE created_at >= $1::date AND created_at < $2::date + 1 GROUP BY status`, [from, to]);
   const s = await getSettings();
   res.json({ from, to, by_type: byType, revenue, liability: { ...liability, seller_coins: sellerFloat.coins, diamonds_value: Math.round((Number(liability.diamonds || 0) / s.economy.diamonds_per_unit) * 100) / 100 }, salaries, commissions, currency: s.economy.currency });
 });
@@ -262,6 +272,69 @@ r.get('/admin/analytics', adminAuth('analytics'), async (req, res) => {
 
 r.get('/admin/export/users', adminAuth('analytics'), async (_req, res) => {
   sendCsv(res, 'users', await q(`SELECT id, uid, name, email, phone, gender, country, coins, diamonds, total_spent, total_earned, total_recharged, vip_level, is_host, status, created_at, last_login FROM users ORDER BY id`));
+});
+
+
+// ---------- host withdrawals (synthetic: admin marks paid after paying out-of-band) ----------
+
+r.get('/admin/withdrawals', adminAuth('finance'), async (req, res) => {
+  const status = str(req.query.status, 20) || 'requested';
+  const rows = status === 'all'
+    ? await q('SELECT w.*, u.uid, u.name FROM withdrawals w JOIN users u ON u.id=w.user_id ORDER BY w.created_at DESC LIMIT 200')
+    : await q('SELECT w.*, u.uid, u.name FROM withdrawals w JOIN users u ON u.id=w.user_id WHERE w.status=$1 ORDER BY w.created_at DESC LIMIT 200', [status]);
+  res.json(rows);
+});
+
+r.post('/admin/withdrawals/:id', adminAuth('finance'), async (req, res) => {
+  const action = str(req.body.action, 10);
+  const w = await one('SELECT * FROM withdrawals WHERE id=$1', [int(req.params.id)]);
+  need(w && w.status === 'requested', 'Withdrawal not found or already processed');
+  if (action === 'paid') {
+    await q(`UPDATE withdrawals SET status='paid', decided_at=now(), note=$2 WHERE id=$1 AND status='requested'`, [w.id, str(req.body.note, 200) || null]);
+  } else if (action === 'rejected') {
+    await tx(async (c) => {
+      await c.q(`UPDATE withdrawals SET status='rejected', decided_at=now(), note=$2 WHERE id=$1 AND status='requested'`, [w.id, str(req.body.note, 200) || null]);
+      await changeDiamonds(c, w.user_id, Number(w.diamonds), 'withdraw_refund', { refType: 'withdrawal', refId: w.id, note: 'Withdrawal rejected, diamonds returned' });
+    });
+  } else {
+    throw bad('action must be paid or rejected');
+  }
+  await audit(req, `withdrawal.${action}`, 'withdrawal', w.id);
+  res.json({ ok: true });
+});
+
+// ---------- user recharge-refund requests ----------
+
+r.get('/admin/refunds', adminAuth('finance'), async (req, res) => {
+  const status = str(req.query.status, 20) || 'open';
+  const rows = status === 'all'
+    ? await q('SELECT rr.*, u.uid, u.name FROM refund_requests rr JOIN users u ON u.id=rr.user_id ORDER BY rr.created_at DESC LIMIT 200')
+    : await q('SELECT rr.*, u.uid, u.name FROM refund_requests rr JOIN users u ON u.id=rr.user_id WHERE rr.status=$1 ORDER BY rr.created_at DESC LIMIT 200', [status]);
+  res.json(rows);
+});
+
+r.post('/admin/refunds/:id', adminAuth('finance'), async (req, res) => {
+  const action = str(req.body.action, 10);
+  const rr = await one('SELECT * FROM refund_requests WHERE id=$1', [int(req.params.id)]);
+  need(rr && rr.status === 'open', 'Refund request not found or already decided');
+  if (action === 'approve') {
+    // Coins were already held at request time; approving finalizes the debit.
+    await tx(async (c) => {
+      await c.q(`UPDATE refund_requests SET status='approved', decided_at=now(), decided_by=$2 WHERE id=$1 AND status='open'`, [rr.id, req.admin.id]);
+      await c.q(`UPDATE recharge_orders SET status='refunded' WHERE id=$1 AND status='refund_requested'`, [rr.order_id]);
+    });
+  } else if (action === 'reject') {
+    await tx(async (c) => {
+      await c.q(`UPDATE refund_requests SET status='rejected', decided_at=now(), decided_by=$2 WHERE id=$1 AND status='open'`, [rr.id, req.admin.id]);
+      await c.q(`UPDATE recharge_orders SET status='paid' WHERE id=$1 AND status='refund_requested'`, [rr.order_id]);
+      // Release the held coins back to the user.
+      await changeCoins(c, rr.user_id, Number(rr.coins), 'refund_release', { refType: 'refund', refId: rr.id, note: 'Refund rejected, coins returned', allowFrozen: true });
+    });
+  } else {
+    throw bad('action must be approve or reject');
+  }
+  await audit(req, `refund.${action}`, 'refund', rr.id);
+  res.json({ ok: true });
 });
 
 export default r;

@@ -159,6 +159,42 @@ export function initSocket(httpServer, corsOrigin) {
       }
     });
 
+    // Direct WebRTC mesh signaling between Host and Viewers
+    socket.on('webrtc:join', ({ roomId, isHost } = {}) => {
+      try {
+        if (!roomId) return;
+        roomId = Number(roomId);
+        if (isHost) {
+          socket.join(`webrtc:host:${roomId}`);
+          socket.to(`r:${roomId}`).emit('webrtc:host_ready');
+        } else {
+          io.to(`webrtc:host:${roomId}`).emit('webrtc:viewer_joined', { viewerSocketId: socket.id, uid });
+        }
+      } catch (e) {
+        console.warn('[WebRTC webrtc:join error]', e.message);
+      }
+    });
+
+    socket.on('webrtc:signal', ({ to, data } = {}) => {
+      try {
+        if (to && data) {
+          io.to(to).emit('webrtc:signal', { from: socket.id, data, uid });
+        }
+      } catch (e) {
+        console.warn('[WebRTC webrtc:signal error]', e.message);
+      }
+    });
+
+    socket.on('webrtc:ice', ({ to, candidate } = {}) => {
+      try {
+        if (to && candidate) {
+          io.to(to).emit('webrtc:ice', { from: socket.id, candidate });
+        }
+      } catch (e) {
+        console.warn('[WebRTC webrtc:ice error]', e.message);
+      }
+    });
+
     // ---------- 1v1 call WebRTC signaling (offer / answer / ICE candidates) ----------
     socket.on('call:signal', async ({ callId, data } = {}) => {
       const call = await one(`SELECT caller_id, host_id, status FROM calls WHERE id=$1`, [Number(callId)]);

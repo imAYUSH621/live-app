@@ -5,12 +5,17 @@ services:
     runtime: node
     plan: free
     rootDir: server
-    buildCommand: npm install && npm run migrate && npm run seed
+    buildCommand: cd ../web && npm install --include=dev && npm run build && cd ../admin && npm install --include=dev && npm run build -- --base=/panel/ && cd ../server && npm install && npm run migrate && npm run seed
     startCommand: npm start
     healthCheckPath: /
     envVars:
       - key: NODE_ENV
         value: production
+      # PR #15/#16 private test-artifact route. sync:false: the public repo
+      # must not carry the enable value. Code default is OFF; each environment
+      # opts in explicitly in its own Render dashboard (staging only).
+      - key: TEST_ARTIFACTS_ENABLED
+        sync: false
       - key: PORT
         value: 10000
       - key: DATABASE_URL
@@ -28,9 +33,9 @@ services:
       - key: LIVEKIT_API_URL
         value: https://liveapp-xlp0dmau.livekit.cloud
       - key: LIVEKIT_API_KEY
-        value: APIgwq8qttLHjcn
+        sync: false  # set in the Render dashboard; never commit the value
       - key: LIVEKIT_API_SECRET
-        value: 0ZiP690jLfcJASAeZloUL9Tq4UNg4NhFIHAKAYDofSrA
+        sync: false  # set in the Render dashboard; never commit the value
       - key: ADMIN_EMAIL
         value: admin@example.com
       - key: ADMIN_PASSWORD

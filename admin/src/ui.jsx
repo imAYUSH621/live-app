@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { api, media } from './lib/api.js';
+import { api, media, fetchPrivateMedia } from './lib/api.js';
 
 // ---------- toasts ----------
 const ToastCtx = createContext(() => {});
@@ -49,6 +49,24 @@ export function useAct() {
 }
 
 export const Badge = ({ v, kind }) => <span className={`badge ${kind || String(v || '').toLowerCase()}`}>{String(v ?? '—').replace(/_/g, ' ')}</span>;
+
+// Image that may live behind the admin-only /uploads-private mount: loads
+// via an authenticated blob fetch instead of a plain <img src>.
+export function PrivateImg({ url, alt = '', style }) {
+  const [src, setSrc] = useState(null);
+  useEffect(() => {
+    let revoke = null;
+    let live = true;
+    if (url && url.startsWith('/uploads-private/')) {
+      fetchPrivateMedia(url).then((b) => { if (live) { revoke = b; setSrc(b); } else URL.revokeObjectURL(b); }).catch(() => live && setSrc(null));
+    } else {
+      setSrc(media(url));
+    }
+    return () => { live = false; if (revoke) URL.revokeObjectURL(revoke); };
+  }, [url]);
+  if (!src) return <span className="muted">—</span>;
+  return <img src={src} alt={alt} style={style} />;
+}
 
 export function Avatar({ src, name, size = 32 }) {
   return src ? <img className="avatar" src={media(src)} alt="" style={{ width: size, height: size }} />

@@ -26,6 +26,9 @@ export const authApi = {
 
   emailLogin: (data: { email: string; password: string; device_id: string }) =>
     api.post<AuthResponse>('/auth/login', data),
+
+  emailRegister: (data: { email: string; password: string; name?: string; device_id: string }) =>
+    api.post<AuthResponse>('/auth/register', data),
 };
 
 export const userApi = {
@@ -247,3 +250,62 @@ export const hostCenterApi = {
   applyHost: (formData: FormData) => api.post<any>('/host/apply', formData),
 };
 
+export interface SafetyState {
+  dailyLimit: number;
+  spentToday: number;
+  pendingLimit: number | null;
+  pendingAt: string | null;
+  refundWindowHours: number;
+  orders: Array<{
+    id: number;
+    coins: number;
+    amount: number;
+    currency: string;
+    at: string;
+    status: string;
+    refundStatus: string | null;
+    canRefund: boolean;
+  }>;
+}
+
+export interface SupportTicket {
+  id: number;
+  subject: string;
+  status: string;
+  reply: string | null;
+  created_at: string;
+}
+
+export const safetyApi = {
+  getSafety: () => api.get<SafetyState>('/safety'),
+
+  setDailyLimit: (coins: number) =>
+    api.put<{ dailyLimit: number; pendingLimit: number | null }>('/safety/limit', { coins }),
+
+  requestRefund: (orderId: number) =>
+    api.post<{ ok: boolean }>(`/recharge/${orderId}/refund`, {}),
+};
+
+export const supportApi = {
+  listTickets: () => api.get<SupportTicket[]>('/support'),
+
+  createTicket: (subject: string, body: string) =>
+    api.post<{ ok: boolean }>('/support', { subject, body }),
+};
+
+export interface AgencyInvite {
+  id: number;
+  name: string;
+  code: string;
+}
+
+export const agencyApi = {
+  myInvites: () => api.get<AgencyInvite[]>('/agency/invites'),
+
+  joinByCode: (code: string) => api.post<any>('/agency/join', { code }),
+
+  answerInvite: (id: number, action: 'accept' | 'decline') =>
+    api.post<any>(`/agency/invites/${id}/${action}`, {}),
+
+  leaveAgency: () => api.post<any>('/host/leave-agency', {}),
+};

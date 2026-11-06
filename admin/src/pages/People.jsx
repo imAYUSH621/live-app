@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { get, post, put, patch, num, money, dt, media, downloadCsv } from '../lib/api.js';
-import { useLoad, useAct, Table, Badge, UserCell, Drawer, Modal, FormModal, Tabs, Pager, Avatar, Stat, confirmAct } from '../ui.jsx';
+import { useLoad, useAct, Table, Badge, UserCell, Drawer, Modal, FormModal, Tabs, Pager, Avatar, Stat, confirmAct, PrivateImg } from '../ui.jsx';
 
 // ======================= USERS =======================
 export function Users() {
@@ -154,8 +154,8 @@ export function Hosts() {
         {view && (
           <>
             <div className="grid g2">
-              <div><div className="muted small">Live selfie</div>{view.selfie_url ? <img src={media(view.selfie_url)} alt="" style={{ width: '100%', borderRadius: 10 }} /> : '—'}</div>
-              <div><div className="muted small">ID document</div>{view.id_doc_url ? <img src={media(view.id_doc_url)} alt="" style={{ width: '100%', borderRadius: 10 }} /> : <p className="muted">Not provided</p>}</div>
+              <div><div className="muted small">Live selfie</div>{view.selfie_url ? <PrivateImg url={view.selfie_url} style={{ width: '100%', borderRadius: 10 }} /> : '—'}</div>
+              <div><div className="muted small">ID document</div>{view.id_doc_url ? <PrivateImg url={view.id_doc_url} style={{ width: '100%', borderRadius: 10 }} /> : <p className="muted">Not provided</p>}</div>
             </div>
             <dl className="kv mt">
               <dt>App ID</dt><dd>{view.uid}</dd><dt>Gender / DOB</dt><dd>{view.gender} · {view.dob ? new Date(view.dob).toLocaleDateString() : '—'}</dd>

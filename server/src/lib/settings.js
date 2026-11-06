@@ -1,3 +1,4 @@
+import { config } from '../config.js';
 import { q, one } from '../db.js';
 import { redis } from '../redis.js';
 
@@ -22,6 +23,8 @@ export const DEFAULT_SETTINGS = {
     red_packet: true, spin_wheel: true, ad_rewards: true, guest_login: true,
     phone_login: true, email_login: true, google_login: true, translate: false,
     cp: true, fan_club: true,
+    host_withdrawals: false,   // OFF: overlaps monthly settlement (double cash-out) until payout model is resolved
+    diamond_exchange: false,   // OFF: same unresolved overlap - exchange redeems the same diamonds settlement pays on
   },
   economy: {
     currency: 'INR',
@@ -53,10 +56,16 @@ export const DEFAULT_SETTINGS = {
     new_host_bonus: 0,
     allow_without_agency: true,
     official_agency_code: 'OFFICIAL',
+    min_withdraw_diamonds: 1000,   // minimum diamonds per withdrawal request
+  },
+  safety: {
+    refund_window_hours: 72,       // accidental-recharge refund window
+    refund_max_per_30d: 1,         // max refund requests per user per 30 days
+    limit_raise_delay_hours: 48,   // cooling-off before a raised daily gift limit applies
   },
   pk: { duration: 300, punishment: 60, min_level: 0 },
   room: {
-    host_only_live: false,     // true = only approved hosts can go live
+    host_only_live: true,      // only approved hosts can go live (admin can relax in settings)
     multi_seats: [3, 6, 9], party_seats: 8, max_title: 60,
     thumbnail_interval_sec: 60, idle_end_minutes: 10,
     chat_slow_ms: 800, like_batch_ms: 1500,
@@ -88,6 +97,12 @@ export async function getSettings() {
   const rows = await q('SELECT key, value FROM settings');
   const merged = structuredClone(DEFAULT_SETTINGS);
   for (const r of rows) merged[r.key] = { ...(merged[r.key] || {}), ...r.value };
+  // Host approval is unconditional in production: no flag or saved row can
+  // reopen go-live to unverified users there. Outside production, open go-live
+  // is an explicit local-test opt-in (ALLOW_OPEN_LIVE=true); a saved settings
+  // row alone never disables the gate.
+  const allowOpenLive = config.nodeEnv !== 'production' && process.env.ALLOW_OPEN_LIVE === 'true';
+  if (!allowOpenLive) merged.room.host_only_live = true;
   await redis.set(CACHE_KEY, JSON.stringify(merged), 'EX', 30);
   return merged;
 }

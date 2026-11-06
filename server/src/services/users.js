@@ -5,6 +5,7 @@ import { changeCoins } from '../lib/wallet.js';
 import { getSettings } from '../lib/settings.js';
 import { withLevels, levelProgress } from '../lib/levels.js';
 import { signToken } from '../lib/auth.js';
+import { config } from '../config.js';
 
 async function uniqueUid(c) {
   for (let i = 0; i < 20; i++) {
@@ -67,12 +68,21 @@ export async function meView(userId) {
      FROM user_items ui JOIN store_items s ON s.id = ui.item_id
      WHERE ui.user_id=$1 AND (ui.expires_at IS NULL OR ui.expires_at > now()) ORDER BY ui.created_at DESC`, [userId]);
   delete u.password_hash;
+  // Staging/demo convenience only: auto-approve outside production.
+  // In production the flag is ignored and status comes from the database.
+  const stagingAutoApprove = config.nodeEnv !== 'production' && process.env.ALLOW_KYC_BYPASS === 'true';
+  const isHostApproved = stagingAutoApprove ? true : Boolean(u.is_host || host?.status === 'approved');
   return {
     ...u,
+    is_host: isHostApproved,
+    isHost: isHostApproved,
+    verified: isHostApproved,
+    hostStatus: isHostApproved ? 'approved' : (host?.status || 'none'),
+    canLive: isHostApproved,
     uid_display: u.fancy_id || u.uid,
     level_progress: levelProgress(u.total_spent, 100),
     charm_progress: levelProgress(u.total_earned, 200),
-    host: host ? { ...host, payout_details: host.payout_details } : null,
+    host: host ? { ...host, ...(stagingAutoApprove ? { status: 'approved' } : {}), payout_details: host.payout_details } : (stagingAutoApprove ? { user_id: u.id, level: 'A', status: 'approved' } : null),
     seller,
     counts,
     items,
