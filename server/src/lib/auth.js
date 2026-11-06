@@ -22,7 +22,7 @@ function bearer(req) {
 }
 
 /** App user auth. Loads the user row onto req.user and blocks banned users. */
-export function userAuth({ optional = false } = {}) {
+export function userAuth({ optional = false, allowBanned = false } = {}) {
   return async (req, _res, next) => {
     const p = verifyToken(bearer(req));
     if (!p || p.k !== 'user') {
@@ -31,7 +31,7 @@ export function userAuth({ optional = false } = {}) {
     }
     const u = await one('SELECT * FROM users WHERE id=$1', [p.id]);
     if (!u || u.status === 'deleted') throw new HttpError(401, 'Account not found', 'unauthorized');
-    if (u.status === 'banned' && (!u.ban_until || new Date(u.ban_until) > new Date())) {
+    if (!allowBanned && u.status === 'banned' && (!u.ban_until || new Date(u.ban_until) > new Date())) {
       throw new HttpError(403, `Account banned${u.ban_reason ? ': ' + u.ban_reason : ''}`, 'banned');
     }
     req.user = u;

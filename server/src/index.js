@@ -40,6 +40,7 @@ import adminModRoutes from './routes/admin-mod.js';
 import adminFinanceRoutes from './routes/admin-finance.js';
 import bondRoutes from './routes/bonds.js';
 import kycRoutes from './routes/kyc.js';
+import appealRoutes from './routes/appeals.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -150,7 +151,7 @@ app.use('/api', (req, _res, next) => {
 
 app.use('/api/auth', authRoutes);
 for (const r of [discoverRoutes, userRoutes, liveRoutes, callRoutes, walletRoutes, storeRoutes, socialRoutes, hostRoutes,
-  safetyRoutes, agencyRoutes, sellerRoutes, bondRoutes, kycRoutes, adminRoutes, adminContentRoutes, adminModRoutes, adminFinanceRoutes, testArtifactRoutes]) app.use('/api', r);
+  safetyRoutes, agencyRoutes, sellerRoutes, bondRoutes, kycRoutes, appealRoutes, adminRoutes, adminContentRoutes, adminModRoutes, adminFinanceRoutes, testArtifactRoutes]) app.use('/api', r);
 
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found' }));
 
