@@ -115,6 +115,9 @@ r.get('/host/earnings', auth, async (req, res) => {
 
 r.post('/host/withdraw', auth, async (req, res) => {
   const s = await getSettings();
+  if (!s.features.host_withdrawals) {
+    throw bad('Withdrawals are temporarily unavailable while payout rules are finalized', 'withdrawals_paused');
+  }
   const h = await one('SELECT status FROM hosts WHERE user_id=$1', [req.user.id]);
   need(h && h.status === 'approved', 'Only approved hosts can withdraw');
   const diamonds = Math.floor(Number(req.body.diamonds));

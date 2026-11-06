@@ -23,6 +23,7 @@ export const DEFAULT_SETTINGS = {
     red_packet: true, spin_wheel: true, ad_rewards: true, guest_login: true,
     phone_login: true, email_login: true, google_login: true, translate: false,
     cp: true, fan_club: true,
+    host_withdrawals: false,   // OFF: overlaps monthly settlement (double cash-out) until payout model is resolved
   },
   economy: {
     currency: 'INR',

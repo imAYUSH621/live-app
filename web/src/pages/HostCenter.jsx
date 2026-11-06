@@ -14,8 +14,6 @@ export default function HostCenter() {
   const t = useT();
   const [c, setC] = useState(null);
   const [income, setIncome] = useState(null);
-  const [earn, setEarn] = useState(null);
-  const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('upi');
   const [account, setAccount] = useState('');
   const [busy, setBusy] = useState(false);
@@ -26,7 +24,6 @@ export default function HostCenter() {
       if (d.host?.payout_details?.account) setAccount(d.host.payout_details.account);
     }).catch((e) => toast(e.message, 'error'));
     api('/host/income').then(setIncome).catch(() => {});
-    api('/host/earnings').then(setEarn).catch(() => {});
   };
   useEffect(() => { if (me?.user?.isHost) load(); }, [me?.user?.isHost]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -62,18 +59,6 @@ export default function HostCenter() {
   const m = c.month || {};
   const cur = m.currency || 'INR';
   const sym = cur === 'INR' ? '₹' : `${cur} `;
-  const withdraw = async (e) => {
-    e.preventDefault();
-    if (!account.trim()) return toast('Save your payout account below first', 'error');
-    setBusy(true);
-    try {
-      await api('/host/withdraw', { method: 'POST', body: { diamonds: Number(amount), method, account: account.trim() } });
-      toast('Withdrawal requested. Diamonds are held until it is processed.');
-      setAmount('');
-      load();
-    } catch (err) { toast(err.message, 'error'); }
-    setBusy(false);
-  };
   const savePayout = async (e) => {
     e.preventDefault();
     setBusy(true);
@@ -111,26 +96,6 @@ export default function HostCenter() {
           <div key={x.day} className="list-row"><div className="grow"><b>{new Date(x.day).toLocaleDateString('en-IN')}</b></div><span className="muted">{hrs(x.live_seconds)} h</span><span className="coins">{fmt(x.diamonds)}</span></div>
         ))}
       </div>
-      {earn && <>
-        <h3 className="section-title">Withdraw earnings</h3>
-        <form className="card form" onSubmit={withdraw}>
-          <p className="muted small">Minimum {fmt(earn.rate.minWithdraw)} diamonds ({sym}{(earn.rate.minWithdraw / earn.rate.diamondsPerUnit).toLocaleString('en-IN')}). Diamonds are held while the request is processed.</p>
-          <div className="row gap">
-            <input className="input grow" type="number" min={earn.rate.minWithdraw} max={c.user?.diamonds || 0} placeholder={`Diamonds (min ${earn.rate.minWithdraw})`} value={amount} onChange={(e) => setAmount(e.target.value)} required />
-            <button className="btn primary" disabled={busy}>Withdraw</button>
-          </div>
-          {amount >= earn.rate.minWithdraw && <p className="muted small">= {sym}{Math.floor((Number(amount) / earn.rate.diamondsPerUnit) * 100) / 100} to your {METHODS[method]} account below</p>}
-        </form>
-        {earn.withdrawals.length > 0 && (
-          <div className="list compact">{earn.withdrawals.map((w) => (
-            <div key={w.id} className="list-row">
-              <div className="grow"><b>{fmt(w.diamonds)} diamonds</b><small>{new Date(w.created_at).toLocaleString('en-IN')} · {METHODS[w.method] || w.method}{w.note ? ` · ${w.note}` : ''}</small></div>
-              <span>{sym}{Number(w.amount).toLocaleString('en-IN')}</span>
-              <span className={`status ${w.status}`}>{w.status}</span>
-            </div>
-          ))}</div>
-        )}
-      </>}
       <h3 className="section-title">Payout account</h3>
       <form className="form" onSubmit={savePayout}>
         <div className="seg small wrap">{Object.keys(METHODS).map((x) => <button key={x} type="button" className={method === x ? 'on' : ''} onClick={() => setMethod(x)}>{METHODS[x]}</button>)}</div>
