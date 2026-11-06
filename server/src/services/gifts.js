@@ -1,6 +1,7 @@
 import { tx, one } from '../db.js';
 import { redis } from '../redis.js';
 import { changeCoins, changeDiamonds, addHostDiamondStat } from '../lib/wallet.js';
+import { checkSpend } from '../lib/safety.js';
 import { getSettings } from '../lib/settings.js';
 import { bad, notFound, need } from '../lib/util.js';
 import { toRoom, toUser, toAll } from '../lib/io.js';
@@ -69,6 +70,7 @@ export async function sendGift({ senderId, receiverId, giftId, qty = 1, context 
   let pkId = room ? await rs.getPk(room.id) : null;
 
   const result = await tx(async (c) => {
+    await checkSpend(c, senderId, coins);
     const balance = await changeCoins(c, senderId, -coins, 'gift_send', { refType: 'gift', refId: gift.id, note: `${gift.name} x${qty}` });
     await changeDiamonds(c, receiverId, diamonds, 'gift_receive', { refType: 'gift', refId: gift.id, note: `${gift.name} x${qty}` });
     if (receiver.is_host) await addHostDiamondStat(c, receiverId, diamonds);

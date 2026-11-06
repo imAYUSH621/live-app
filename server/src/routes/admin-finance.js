@@ -4,7 +4,7 @@ import { one, q, tx } from '../db.js';
 import { adminAuth } from '../lib/auth.js';
 import { need, str, int, notFound, page, monthOf, bad } from '../lib/util.js';
 import { audit } from '../lib/audit.js';
-import { changeCoins } from '../lib/wallet.js';
+import { changeCoins, changeDiamonds } from '../lib/wallet.js';
 import { toUser } from '../lib/io.js';
 import { creditOrder } from '../services/recharge.js';
 import { runSettlement, approveSettlement, runAgencyCommissions } from '../services/settlement.js';
@@ -56,6 +56,7 @@ r.post('/admin/orders/:id/refund', adminAuth('finance'), async (req, res) => {
     if (take > 0) await changeCoins(c, o.user_id, -take, 'refund', { refType: 'order', refId: o.id, allowFrozen: true });
     if (take < o.coins) await c.q('UPDATE users SET wallet_frozen=true WHERE id=$1', [o.user_id]);
   });
+  await q("UPDATE refund_requests SET status='approved', decided_at=now(), decided_by=$2 WHERE order_id=$1 AND status='open'", [o.id, req.admin.id]);
   await audit(req, 'order.refund', 'order', o.id);
   res.json({ ok: true });
 });
@@ -269,6 +270,69 @@ r.get('/admin/analytics', adminAuth('analytics'), async (req, res) => {
 
 r.get('/admin/export/users', adminAuth('analytics'), async (_req, res) => {
   sendCsv(res, 'users', await q(`SELECT id, uid, name, email, phone, gender, country, coins, diamonds, total_spent, total_earned, total_recharged, vip_level, is_host, status, created_at, last_login FROM users ORDER BY id`));
+});
+
+
+// ---------- host withdrawals (synthetic: admin marks paid after paying out-of-band) ----------
+
+r.get('/admin/withdrawals', adminAuth('finance'), async (req, res) => {
+  const status = str(req.query.status, 20) || 'requested';
+  const rows = status === 'all'
+    ? await q('SELECT w.*, u.uid, u.name FROM withdrawals w JOIN users u ON u.id=w.user_id ORDER BY w.created_at DESC LIMIT 200')
+    : await q('SELECT w.*, u.uid, u.name FROM withdrawals w JOIN users u ON u.id=w.user_id WHERE w.status=$1 ORDER BY w.created_at DESC LIMIT 200', [status]);
+  res.json(rows);
+});
+
+r.post('/admin/withdrawals/:id', adminAuth('finance'), async (req, res) => {
+  const action = str(req.body.action, 10);
+  const w = await one('SELECT * FROM withdrawals WHERE id=$1', [int(req.params.id)]);
+  need(w && w.status === 'requested', 'Withdrawal not found or already processed');
+  if (action === 'paid') {
+    await q(`UPDATE withdrawals SET status='paid', decided_at=now(), note=$2 WHERE id=$1 AND status='requested'`, [w.id, str(req.body.note, 200) || null]);
+  } else if (action === 'rejected') {
+    await tx(async (c) => {
+      await c.q(`UPDATE withdrawals SET status='rejected', decided_at=now(), note=$2 WHERE id=$1 AND status='requested'`, [w.id, str(req.body.note, 200) || null]);
+      await changeDiamonds(c, w.user_id, Number(w.diamonds), 'withdraw_refund', { refType: 'withdrawal', refId: w.id, note: 'Withdrawal rejected, diamonds returned' });
+    });
+  } else {
+    throw bad('action must be paid or rejected');
+  }
+  await audit(req, `withdrawal.${action}`, 'withdrawal', w.id);
+  res.json({ ok: true });
+});
+
+// ---------- user recharge-refund requests ----------
+
+r.get('/admin/refunds', adminAuth('finance'), async (req, res) => {
+  const status = str(req.query.status, 20) || 'open';
+  const rows = status === 'all'
+    ? await q('SELECT rr.*, u.uid, u.name FROM refund_requests rr JOIN users u ON u.id=rr.user_id ORDER BY rr.created_at DESC LIMIT 200')
+    : await q('SELECT rr.*, u.uid, u.name FROM refund_requests rr JOIN users u ON u.id=rr.user_id WHERE rr.status=$1 ORDER BY rr.created_at DESC LIMIT 200', [status]);
+  res.json(rows);
+});
+
+r.post('/admin/refunds/:id', adminAuth('finance'), async (req, res) => {
+  const action = str(req.body.action, 10);
+  const rr = await one('SELECT * FROM refund_requests WHERE id=$1', [int(req.params.id)]);
+  need(rr && rr.status === 'open', 'Refund request not found or already decided');
+  if (action === 'approve') {
+    // Coins were already held at request time; approving finalizes the debit.
+    await tx(async (c) => {
+      await c.q(`UPDATE refund_requests SET status='approved', decided_at=now(), decided_by=$2 WHERE id=$1 AND status='open'`, [rr.id, req.admin.id]);
+      await c.q(`UPDATE recharge_orders SET status='refunded' WHERE id=$1 AND status='refund_requested'`, [rr.order_id]);
+    });
+  } else if (action === 'reject') {
+    await tx(async (c) => {
+      await c.q(`UPDATE refund_requests SET status='rejected', decided_at=now(), decided_by=$2 WHERE id=$1 AND status='open'`, [rr.id, req.admin.id]);
+      await c.q(`UPDATE recharge_orders SET status='paid' WHERE id=$1 AND status='refund_requested'`, [rr.order_id]);
+      // Release the held coins back to the user.
+      await changeCoins(c, rr.user_id, Number(rr.coins), 'refund_release', { refType: 'refund', refId: rr.id, note: 'Refund rejected, coins returned', allowFrozen: true });
+    });
+  } else {
+    throw bad('action must be approve or reject');
+  }
+  await audit(req, `refund.${action}`, 'refund', rr.id);
+  res.json({ ok: true });
 });
 
 export default r;
