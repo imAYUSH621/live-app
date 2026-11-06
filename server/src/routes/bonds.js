@@ -19,11 +19,12 @@ r.post('/cp/propose', auth, async (req, res) => {
   need(s.features.cp, 'CP is turned off');
   const to = int(req.body.user_id);
   need(to && to !== req.user.id, 'Choose someone else');
-  const both = await q('SELECT id, cp_user_id FROM users WHERE id = ANY($1)', [[req.user.id, to]]);
-  need(both.length === 2, 'User not found');
-  need(both.every((u) => !u.cp_user_id), 'One of you already has a CP');
-  need(!(await one(`SELECT 1 FROM cp_requests WHERE from_id=$1 AND to_id=$2 AND status='pending'`, [req.user.id, to])), 'Proposal already sent');
   const row = await tx(async (c) => {
+    // Serialize proposals/acceptance touching these users before checking state.
+    const both = await c.q('SELECT id, cp_user_id FROM users WHERE id = ANY($1) ORDER BY id FOR UPDATE', [[req.user.id, to]]);
+    need(both.length === 2, 'User not found');
+    need(both.every((u) => !u.cp_user_id), 'One of you already has a CP');
+    need(!(await c.one(`SELECT 1 FROM cp_requests WHERE from_id=$1 AND to_id=$2 AND status='pending'`, [req.user.id, to])), 'Proposal already sent');
     await changeCoins(c, req.user.id, -s.economy.cp_coins, 'cp_propose', { refType: 'user', refId: to });
     return c.one('INSERT INTO cp_requests(from_id, to_id, coins) VALUES ($1,$2,$3) RETURNING *', [req.user.id, to, s.economy.cp_coins]);
   });
@@ -38,24 +39,29 @@ r.get('/cp/requests', auth, async (req, res) => {
 });
 
 r.post('/cp/requests/:id', auth, async (req, res) => {
-  const rq = await one(`SELECT * FROM cp_requests WHERE id=$1 AND to_id=$2 AND status='pending'`, [int(req.params.id), req.user.id]);
-  if (!rq) throw notFound('Proposal not found');
-  if (req.body.accept) {
-    await tx(async (c) => {
+  const rq = await tx(async (c) => {
+    // A pending request can settle once. Hold its row lock through the refund
+    // or pairing write so a racing retry cannot repeat either side effect.
+    const rq = await c.one(`SELECT * FROM cp_requests WHERE id=$1 AND to_id=$2 AND status='pending' FOR UPDATE`, [int(req.params.id), req.user.id]);
+    if (!rq) throw notFound('Proposal not found');
+    if (req.body.accept) {
+      await c.q('SELECT id FROM users WHERE id IN ($1,$2) ORDER BY id FOR UPDATE', [rq.from_id, rq.to_id]);
       const ok = await c.q(
         'UPDATE users SET cp_user_id = CASE WHEN id=$1 THEN $2 ELSE $1 END, cp_since=now() WHERE id IN ($1,$2) AND cp_user_id IS NULL RETURNING id',
         [rq.from_id, rq.to_id]);
       need(ok.length === 2, 'One of you already has a CP');
       await c.q(`UPDATE cp_requests SET status='accepted' WHERE id=$1`, [rq.id]);
-    });
+    } else {
+      await c.q(`UPDATE cp_requests SET status='rejected' WHERE id=$1`, [rq.id]);
+      await changeCoins(c, rq.from_id, rq.coins, 'refund', { note: 'CP proposal declined' });
+    }
+    return rq;
+  });
+  if (req.body.accept) {
     invalidateProfile(rq.from_id);
     invalidateProfile(rq.to_id);
     toUser(rq.from_id, 'cp:accepted', { user: await miniProfile(req.user.id) });
   } else {
-    await tx(async (c) => {
-      await c.q(`UPDATE cp_requests SET status='rejected' WHERE id=$1`, [rq.id]);
-      await changeCoins(c, rq.from_id, rq.coins, 'refund', { note: 'CP proposal declined' });
-    });
     toUser(rq.from_id, 'cp:declined', { user: await miniProfile(req.user.id) });
   }
   res.json({ ok: true });
