@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { one, q } from '../db.js';
 import { userAuth } from '../lib/auth.js';
 import { bad, need, str, int, page, notFound, PUBLIC_USER_COLS } from '../lib/util.js';
-import { uploader, fileUrl } from '../lib/upload.js';
+import { uploader, fileUrl, storeUpload, removeUpload } from '../lib/upload.js';
 import { withLevels } from '../lib/levels.js';
 import { meView } from '../services/users.js';
 import { invalidateProfile, miniProfile } from '../services/profile.js';
@@ -57,9 +57,12 @@ r.patch('/me', auth, async (req, res) => {
 
 r.post('/me/avatar', auth, uploader(['image']).single('file'), async (req, res) => {
   need(req.file, 'Choose an image');
-  await q('UPDATE users SET avatar_url=$2 WHERE id=$1', [req.user.id, fileUrl(req.file)]);
+  const old = (await one('SELECT avatar_url FROM users WHERE id=$1', [req.user.id]))?.avatar_url;
+  const url = await storeUpload(req.file);
+  await q('UPDATE users SET avatar_url=$2 WHERE id=$1', [req.user.id, url]);
+  if (old && old !== url) await removeUpload(old);
   invalidateProfile(req.user.id);
-  res.json({ avatar_url: fileUrl(req.file) });
+  res.json({ avatar_url: url });
 });
 
 r.post('/me/fcm', auth, async (req, res) => {
@@ -193,13 +196,13 @@ r.delete('/users/:id/block', auth, async (req, res) => {
 });
 
 // ---------- reports ----------
-r.post('/reports', auth, uploader(['image']).single('screenshot'), async (req, res) => {
+r.post('/reports', auth, uploader(['image'], { sensitive: true }).single('screenshot'), async (req, res) => {
   const type = str(req.body.target_type, 20);
   need(['user', 'room', 'moment', 'message'].includes(type), 'Invalid report type');
   const targetId = str(req.body.target_id, 40);
   need(targetId, 'target_id required');
   await q(`INSERT INTO reports(reporter_id, target_type, target_id, reason, details, screenshot_url) VALUES ($1,$2,$3,$4,$5,$6)`,
-    [req.user.id, type, targetId, str(req.body.reason, 60) || 'other', str(req.body.details, 500), req.file ? fileUrl(req.file) : null]);
+    [req.user.id, type, targetId, str(req.body.reason, 60) || 'other', str(req.body.details, 500), req.file ? await storeUpload(req.file, { sensitive: true }) : null]);
   // auto-flag rooms with many open reports
   if (type === 'room') {
     const m = await getSetting('moderation');

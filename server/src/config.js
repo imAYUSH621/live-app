@@ -20,6 +20,12 @@ export const config = {
   jwtSecret: env('JWT_SECRET', 'change-me-in-production'),
   uploadDir: env('UPLOAD_DIR', './uploads'),
   maxUploadMb: Number(env('MAX_UPLOAD_MB', 25)),
+  storageBackend: env('STORAGE_BACKEND', 'local'),
+  cloudinary: {
+    cloudName: env('CLOUDINARY_CLOUD_NAME', ''),
+    apiKey: env('CLOUDINARY_API_KEY', ''),
+    apiSecret: env('CLOUDINARY_API_SECRET', ''),
+  },
   livekit: {
     url: env('LIVEKIT_URL', 'ws://localhost:7880'),            // what clients connect to (wss://live.yourdomain.com)
     apiUrl: env('LIVEKIT_API_URL', env('LIVEKIT_URL', 'http://localhost:7880').replace(/^wss:/i, 'https:').replace(/^ws:/i, 'http:')),   // what the server calls internally
