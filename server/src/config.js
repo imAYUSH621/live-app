@@ -20,6 +20,8 @@ export const config = {
   jwtSecret: env('JWT_SECRET', 'change-me-in-production'),
   uploadDir: env('UPLOAD_DIR', './uploads'),
   maxUploadMb: Number(env('MAX_UPLOAD_MB', 25)),
+  // Staging-only test-artifact delivery (PR #15); fail-closed unless explicitly enabled.
+  testArtifactsEnabled: env('TEST_ARTIFACTS_ENABLED', '') === 'true',
   storageBackend: env('STORAGE_BACKEND', 'local'),
   cloudinary: {
     cloudName: env('CLOUDINARY_CLOUD_NAME', ''),
