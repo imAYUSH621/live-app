@@ -1242,6 +1242,7 @@ img { display: block; }
   padding: 14px 10px;
   border-radius: 18px;
   background: var(--card);
+  color: var(--text);
   border: 1px solid var(--line);
   box-shadow: var(--shadow-sm);
   text-align: center;

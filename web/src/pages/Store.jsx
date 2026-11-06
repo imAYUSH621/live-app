@@ -71,7 +71,7 @@ export default function Store({ vipFirst }) {
                 <div key={item.id} className={`store-item ${item.type}`}>
                   <div className="si-preview" onClick={() => item.type !== 'bubble' && setPreview(item)}>
                     {item.type === 'frame' && <div className="frame-demo"><Avatar user={me?.user} size={70} frame={false} /><AnimPlayer src={item.anim_url} loop className="avatar-frame" /></div>}
-                    {item.type === 'entry' && <img src={item.preview} alt="" />}
+                    {item.type === 'entry' && (/^(\/|https?:)/.test(item.preview || '') ? <img src={item.preview} alt="" /> : <div style={{ fontSize: 44 }}>{item.preview}</div>)}
                     {item.type === 'bubble' && <div className={`chat-msg ${item.anim_url}`}><b>You:</b> <span>Hello!</span></div>}
                     {item.type === 'badge' && <div className="badge-demo" style={{ fontSize: 44 }}>{item.preview}</div>}
                   </div>
@@ -93,7 +93,7 @@ export default function Store({ vipFirst }) {
         <div className="sheet" onClick={() => setPreview(null)}>
           <div className="sheet-body" onClick={(e) => e.stopPropagation()}>
             <h3>{preview.name}</h3>
-            {preview.type === 'entry' && <img src={preview.preview} alt="" style={{ width: '100%' }} />}
+            {preview.type === 'entry' && (/^(\/|https?:)/.test(preview.preview || '') ? <img src={preview.preview} alt="" style={{ width: '100%' }} /> : <div style={{ fontSize: 64, textAlign: 'center' }}>{preview.preview}</div>)}
             {preview.type === 'frame' && <AnimPlayer src={preview.anim_url} loop style={{ width: 160, height: 160 }} />}
             {preview.type === 'badge' && <div style={{ fontSize: 64, textAlign: 'center' }}>{preview.preview}</div>}
             <button className="btn" onClick={() => setPreview(null)}>Close</button>
