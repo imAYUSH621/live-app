@@ -8,6 +8,7 @@ import { one, q } from '../db.js';
 import { adminAuth } from '../lib/auth.js';
 import { privateRoot } from '../lib/upload.js';
 import { bad, notFound } from '../lib/util.js';
+import { config } from '../config.js';
 
 // Test-artifact delivery: lets a panel admin hand one private binary (e.g. a
 // test APK) to a specific person without putting it in the repo, a public
@@ -16,10 +17,22 @@ import { bad, notFound } from '../lib/util.js';
 // is stored; unknown or expired tokens all get the same 404. Files live under
 // the private upload root, which is never served by the public static mounts.
 const r = Router();
+
+// Entire capability is staging-only and fail-closed: without the explicit
+// TEST_ARTIFACTS_ENABLED=true flag every route here answers with the same
+// generic 404 as an unknown path, so production exposes nothing.
+r.use((req, res, next) => (config.testArtifactsEnabled ? next() : res.status(404).json({ error: 'Not found' })));
 const artifactRoot = path.join(privateRoot, 'artifacts');
 fs.mkdirSync(artifactRoot, { recursive: true });
 
 const MAX_BYTES = 80 * 1024 * 1024;
+// Only install/test archive types may be uploaded, matched on both the
+// declared content type and the filename extension.
+const ALLOWED_TYPES = {
+  'application/vnd.android.package-archive': ['.apk'],
+  'application/zip': ['.zip'],
+  'application/octet-stream': ['.apk', '.zip', '.bin'],
+};
 const sha = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
 
 // Admin-only upload. Raw binary body (any content type the global JSON parser
@@ -32,6 +45,10 @@ r.post('/admin/test-artifacts', adminAuth(), express.raw({ type: '*/*', limit: M
   if (claimed && claimed !== actual) throw bad('Checksum mismatch');
   const filename = (String(req.headers['x-filename'] || 'artifact.bin').replace(/[^\w.\-]/g, '_') || 'artifact.bin').slice(0, 120);
   const mime = String(req.headers['content-type'] || 'application/octet-stream').split(';')[0].slice(0, 120);
+  const exts = ALLOWED_TYPES[mime];
+  if (!exts) throw bad(`Content type ${mime} not allowed`);
+  const ext = ('.' + filename.split('.').pop()).toLowerCase();
+  if (!exts.includes(ext)) throw bad(`Extension ${ext} not allowed for ${mime}`);
   const rel = path.join('artifacts', crypto.randomBytes(12).toString('hex') + '.bin');
   fs.writeFileSync(path.join(privateRoot, rel), body);
   const row = await one(
