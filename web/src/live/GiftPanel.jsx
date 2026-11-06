@@ -50,6 +50,7 @@ export default function GiftPanel({ open, onClose, roomId, host, seats = [] }) {
   const [to, setTo] = useState(null);
   const [combo, setCombo] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState(null);
   const comboTimer = useRef();
   const nav = useNavigate();
 
@@ -62,7 +63,7 @@ export default function GiftPanel({ open, onClose, roomId, host, seats = [] }) {
   useEffect(() => { if (!sel && gifts.length) setSel(gifts[0]); }, [gifts, sel]);
   useEffect(() => () => clearTimeout(comboTimer.current), []);
 
-  const send = async (isCombo = false) => {
+  const send = async (isCombo = false, confirmToken = null) => {
     if (!sel || busy) return;
     if (wallet.coins < sel.coins * qty) {
       toast(t('notEnough'));
@@ -71,14 +72,22 @@ export default function GiftPanel({ open, onClose, roomId, host, seats = [] }) {
     setBusy(true);
     try {
       const nextCombo = isCombo ? combo + 1 : 1;
-      const r = await api('/gifts/send', { method: 'POST', body: { room_id: Number(roomId), gift_id: sel.id, qty, receiver_id: (to || host)?.id } });
+      const r = await api('/gifts/send', { method: 'POST', body: { room_id: Number(roomId), gift_id: sel.id, qty, receiver_id: (to || host)?.id, ...(confirmToken ? { confirm_token: confirmToken } : {}) } });
       setWallet((w) => ({ ...(w || {}), coins: r.balance }));
       setCombo(nextCombo);
       clearTimeout(comboTimer.current);
       comboTimer.current = setTimeout(() => setCombo(0), 3000);
       if (sel.tier !== 'small') onClose();
     } catch (e) {
-      if (e.code === 'daily_limit') { toast(t('dailyLimitHit'), 'error'); }
+      if (e.code === 'confirm_needed') {
+        // bulk send: fetch a one-use server token and show the exact total first
+        try {
+          const c = await api('/gifts/confirm', { method: 'POST', body: { gift_id: sel.id, qty } });
+          setConfirm({ token: c.token, name: c.name, qty: c.qty, coins: c.coins, isCombo });
+        } catch (e2) {
+          toast(e2.message, 'error');
+        }
+      } else if (e.code === 'daily_limit') { toast(t('dailyLimitHit'), 'error'); }
       else toast(e.message, 'error');
     }
     setBusy(false);
@@ -120,6 +129,20 @@ export default function GiftPanel({ open, onClose, roomId, host, seats = [] }) {
           <button className="btn primary send" disabled={!sel || busy} onClick={() => send(false)}>{t('send')}</button>
         </div>
       </Sheet>
+      {confirm && (
+        <div className="gift-confirm-overlay" onClick={() => setConfirm(null)}>
+          <div className="gift-confirm-card" onClick={(e) => e.stopPropagation()}>
+            <h3>{t('confirmTitle')}</h3>
+            <p className="gc-detail">{confirm.qty} × {confirm.name}</p>
+            <p className="gc-coins"><CoinIcon size={14} /> {t('confirmBody', { coins: fmt(confirm.coins) })}</p>
+            <div className="row" style={{ gap: 10, marginTop: 14 }}>
+              <button className="btn ghost" style={{ flex: 1 }} onClick={() => setConfirm(null)}>{t('cancel')}</button>
+              <button className="btn primary" style={{ flex: 1 }} disabled={busy}
+                onClick={() => { const c = confirm; setConfirm(null); send(c.isCombo, c.token); }}>{t('confirmYes')}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

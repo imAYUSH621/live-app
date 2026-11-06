@@ -2,12 +2,13 @@ import { Router } from 'express';
 import { one, q, tx } from '../db.js';
 import { redis } from '../redis.js';
 import { userAuth } from '../lib/auth.js';
-import { need, int, str, bad, today } from '../lib/util.js';
+import { need, int, str, bad, today, notFound } from '../lib/util.js';
 import { getSettings } from '../lib/settings.js';
 import { changeCoins, changeDiamonds } from '../lib/wallet.js';
 import { config } from '../config.js';
 import { sendGift } from '../services/gifts.js';
 import { razorpayEnabled, razorpayCreateOrder, razorpayVerify, creditOrder } from '../services/recharge.js';
+import crypto from 'node:crypto';
 
 const r = Router();
 const auth = userAuth();
@@ -23,12 +24,28 @@ r.get('/gifts', auth, async (req, res) => {
   res.json(rows.filter((g) => g.category !== 'lucky' || s.features.lucky_gift));
 });
 
+// Bulk gifts (qty > 1) need a one-use, price-fresh confirmation token first:
+// the client shows the exact total, the user confirms, and sendGift consumes it.
+r.post('/gifts/confirm', auth, async (req, res) => {
+  const giftId = int(req.body.gift_id);
+  const qty = Math.max(1, Math.min(9999, int(req.body.qty, 1)));
+  const gift = await one('SELECT id, name, price FROM gifts WHERE id=$1 AND active', [giftId]);
+  if (!gift) throw notFound('Gift not available');
+  const coins = gift.price * qty;
+  const token = crypto.randomBytes(24).toString('hex');
+  await q(
+    `INSERT INTO gift_confirmations(token, user_id, gift_id, qty, coins, expires_at)
+     VALUES ($1,$2,$3,$4,$5, now() + interval '60 seconds')`,
+    [token, req.user.id, gift.id, qty, coins]);
+  res.json({ token, name: gift.name, qty, coins, ttl_seconds: 60 });
+});
+
 r.post('/gifts/send', auth, async (req, res) => {
   const b = req.body;
   const context = ['room', 'call', 'chat', 'moment'].includes(b.context) ? b.context : 'room';
   res.json(await sendGift({
     senderId: req.user.id, receiverId: int(b.receiver_id), giftId: int(b.gift_id), qty: int(b.qty, 1),
-    context, roomId: b.room_id ? int(b.room_id) : null, momentId: b.moment_id ? int(b.moment_id) : null, callId: b.call_id ? int(b.call_id) : null,
+    context, roomId: b.room_id ? int(b.room_id) : null, momentId: b.moment_id ? int(b.moment_id) : null, callId: b.call_id ? int(b.call_id) : null, confirmToken: typeof b.confirm_token === 'string' ? b.confirm_token : null,
   }));
 });
 

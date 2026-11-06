@@ -795,3 +795,15 @@ CREATE TABLE IF NOT EXISTS appeals (
   decided_at TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS appeals_user ON appeals(user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS gift_confirmations (
+  token TEXT PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id),
+  gift_id BIGINT NOT NULL,
+  qty INT NOT NULL,
+  coins INT NOT NULL,
+  used BOOLEAN NOT NULL DEFAULT false,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS gift_confirmations_user ON gift_confirmations(user_id, created_at DESC);

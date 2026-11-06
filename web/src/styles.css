@@ -2604,3 +2604,17 @@ img { display: block; }
 .media-error .me-hint { margin: 0; color: #fca5a5; font-size: 12px; line-height: 1.45; }
 .media-error-actions { display: flex; gap: 8px; margin-top: 2px; }
 .media-error-actions .btn { padding: 6px 14px; font-size: 13px; }
+
+.gift-confirm-overlay {
+  position: fixed; inset: 0; z-index: 2100;
+  background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(6px);
+  display: grid; place-items: center; padding: 20px;
+}
+.gift-confirm-card {
+  background: #1e293b; border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px; width: 100%; max-width: 340px; padding: 22px;
+  text-align: center;
+}
+.gift-confirm-card h3 { margin: 0 0 10px; font-size: 17px; }
+.gift-confirm-card .gc-detail { font-weight: 700; margin: 0 0 6px; }
+.gift-confirm-card .gc-coins { color: var(--muted, #94a3b8); margin: 0; display: inline-flex; align-items: center; gap: 5px; }
