@@ -140,9 +140,9 @@ export default function Verify() {
           <div className="card">
             <b>Host Identity Verification</b>
             <p className="muted small">To go live and receive gifts, please verify your identity with your Government ID / Aadhaar card and a selfie photo. An admin reviews every submission manually.</p>
-            <div style={{ marginTop: '10px', padding: '10px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.15)', border: '2px solid #f59e0b' }}>
-              <b style={{ color: '#fbbf24' }}>TEST DEPLOYMENT:</b>
-              <span style={{ color: '#fde68a', fontSize: '13px' }}> do not upload real IDs or personal documents here. Use dummy images only.</span>
+            <div style={{ marginTop: '10px', padding: '10px', borderRadius: '8px', background: '#fef3c7', border: '2px solid #d97706' }}>
+              <b style={{ color: '#92400e' }}>TEST DEPLOYMENT:</b>
+              <span style={{ color: '#78350f', fontSize: '13px' }}> do not upload real IDs or personal documents here. Use dummy images only.</span>
             </div>
             {st.kyc?.status === 'rejected' && (
               <div style={{ marginTop: '8px', padding: '10px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
