@@ -2,6 +2,15 @@
 // Bug: created_at < to silently dropped the whole end day, so the "movements
 // by type" aggregation could show nothing while the raw ledger listed entries.
 //   DATABASE_URL=... API=http://localhost:4000 node test/finance_summary_dates.mjs
+//
+// Timezone semantics under test: ledger.created_at is timestamptz. The route
+// compares created_at >= from::date AND created_at < to::date + 1; the ::date
+// casts resolve day boundaries in the DB session TimeZone (Postgres GUC), so
+// "a day" means a server-local day (local deployment: Asia/Calcutta). Fixture
+// rows below carry explicit +05:30 offsets so the assertions hold regardless
+// of the machine timezone; with a session in Asia/Calcutta, 2099-03-11
+// 23:59:59+05:30 falls inside the 2099-03-11 server-local day and
+// 2099-03-12T00:00:01+05:30 falls inside 2099-03-12.
 import pg from 'pg';
 
 const API = process.env.API || 'http://localhost:4000';

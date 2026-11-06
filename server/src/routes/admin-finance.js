@@ -215,6 +215,12 @@ r.get('/admin/finance/summary', adminAuth('finance'), async (req, res) => {
   const to = req.query.to || new Date(Date.now() + 864e5).toISOString().slice(0, 10);
   // `to` is an inclusive calendar date from the UI; the SQL compares against the next day.
   const byType = await q(
+    // Date-range semantics: `from`/`to` are inclusive calendar dates. `to` is
+    // extended by one day and compared strictly, so the whole end date counts
+    // (a bare `created_at < to` silently dropped the end day). The `$n::date`
+    // casts resolve day boundaries in the DB session TimeZone (Postgres GUC;
+    // this deployment runs Asia/Calcutta), and created_at is timestamptz, so
+    // ranges follow server-local days. Regression: test/finance_summary_dates.mjs.
     `SELECT currency, type, sum(amount)::bigint AS amount, count(*)::int AS n FROM ledger WHERE created_at >= $1::date AND created_at < $2::date + 1 GROUP BY 1,2 ORDER BY 1,2`, [from, to]);
   const revenue = await q(`SELECT gateway, currency, sum(amount)::numeric AS amount, count(*)::int AS orders FROM recharge_orders WHERE status='paid' AND paid_at >= $1::date AND paid_at < $2::date + 1 GROUP BY 1,2`, [from, to]);
   const liability = await one(`SELECT sum(coins)::bigint AS coins, sum(diamonds)::bigint AS diamonds FROM users WHERE status<>'deleted'`);
