@@ -5,8 +5,14 @@ on:
       - 'mobile/**'
       - '.github/workflows/android-apk.yml'
   workflow_dispatch:
+    inputs:
+      nav_only:
+        description: Reuse the verified plain APK for navigation checks
+        type: boolean
+        default: false
 jobs:
   apk:
+    if: github.event.inputs.nav_only != 'true'
     runs-on: ubuntu-latest
     env:
       # Approved dummy-data test deployment (free Render, synthetic users only).
@@ -80,7 +86,7 @@ jobs:
   emulator-diagnostic:
     # Branch-scoped diagnostic only: runs when this workflow is dispatched on
     # the diagnostic-build branch; never on main pushes/dispatches.
-    if: github.ref == 'refs/heads/diagnostic-build'
+    if: github.ref == 'refs/heads/diagnostic-build' && github.event.inputs.nav_only != 'true'
     runs-on: ubuntu-latest
     env:
       EXPO_PUBLIC_API_URL: 'https://liveapp-server-ksvy.onrender.com'
@@ -197,3 +203,38 @@ jobs:
             diag-*-logcat-filtered.txt
             diag-ui-hierarchy-*.xml
           if-no-files-found: warn
+
+  emulator-navigation:
+    if: github.ref == 'refs/heads/diagnostic-build' && github.event.inputs.nav_only == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: app-release-test-plain-x86_64-apk
+          run-id: 42230845162
+          github-token: ${{ github.token }}
+          path: ci-apks
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          force-avd-creation: true
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: python3 mobile/scripts/emulator-navigation.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: emulator-navigation-capture
+          path: nav-*
