@@ -4,6 +4,7 @@
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
+    "test:live-contract": "node scripts/test-live-contract.cjs",
     "android": "expo run:android",
     "build:dev": "eas build --profile development --platform android",
     "build:apk": "eas build --profile preview --platform android",

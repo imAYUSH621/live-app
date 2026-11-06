@@ -1,3 +1,4 @@
+import { makeLiveApi } from './liveContract';
 import { api } from './client';
 import {
   AuthResponse,
@@ -61,20 +62,7 @@ export const discoverApi = {
     api.get<any[]>(`/rankings?type=${type}&period=${period}`),
 };
 
-export const liveApi = {
-  getRooms: (category?: string, tab = 'all') =>
-    api.get<LiveRoom[]>(`/rooms?tab=${tab}${category ? `&category=${category}` : ''}`),
-
-  createRoom: (data: { title: string; category: string; mode?: string; cover_url?: string }) =>
-    api.post<LiveJoinResponse>('/rooms', data),
-
-  joinRoom: (id: number, ticketCode?: string) =>
-    api.post<LiveJoinResponse>(`/rooms/${id}/join`, { ticket_code: ticketCode }),
-
-  leaveRoom: (id: number) => api.post<{ ok: boolean }>(`/rooms/${id}/leave`),
-
-  endRoom: (id: number) => api.post<{ ok: boolean; summary?: any }>(`/rooms/${id}/end`),
-};
+export const liveApi = makeLiveApi(api);
 
 export const walletApi = {
   getWallet: () =>

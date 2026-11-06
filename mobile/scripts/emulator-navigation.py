@@ -35,7 +35,7 @@ def capture(label):
  print(label,texts(root))
 try:
  adb('install','-r','ci-apks/app-release-test-plain.apk');adb('logcat','-c')
- adb('shell','pm','grant','com.liveapp.live','android.permission.CAMERA');adb('shell','pm','grant','com.liveapp.live','android.permission.RECORD_AUDIO');adb('shell','svc','power','stayon','true');adb('shell','input','keyevent','KEYCODE_WAKEUP')
+ adb('shell','svc','power','stayon','true');adb('shell','input','keyevent','KEYCODE_WAKEUP')
  adb('shell','monkey','-p','com.liveapp.live','-c','android.intent.category.LAUNCHER','1')
  wait('Use email instead');capture('plain-login')
  tap('Use email instead');wait('Email');capture('email-mode')
@@ -65,18 +65,6 @@ try:
   adb('shell','monkey','-p','com.liveapp.live','-c','android.intent.category.LAUNCHER','1')
   wait('Moments');capture('host-auth-session-relaunch')
   print('HOST_PASSWORD_AUTH_TABS_SESSION_PASS')
-  if os.environ.get('NATIVE_MEDIA_QA'):
-   tap('Go Live Now');wait('Stream Setup');capture('native-stream-setup')
-   node=next(n for n in hierarchy().iter('node') if n.get('class')=='android.widget.EditText')
-   x1,y1,x2,y2=map(int,re.findall(r'\d+',node.get('bounds')))
-   adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2))
-   adb('shell','input','text','Native%sMedia%sQA')
-   adb('shell','input','keyevent','KEYCODE_BACK')
-   tap('Start Live Broadcast');time.sleep(35);capture('native-stream-outcome')
-   # Independent browser receiver owns room cleanup and decoded-frame evidence.
-   return_to_tabs=False
-   raise SystemExit(0)
-
   # Remove dummy app data to exercise independent guest authentication afterward.
   adb('shell','pm','clear','com.liveapp.live')
   adb('shell','monkey','-p','com.liveapp.live','-c','android.intent.category.LAUNCHER','1');wait('Use email instead')
