@@ -2590,7 +2590,8 @@ img { display: block; }
 
 /* Desktop: proportionate hero + navigation */
 @media (min-width: 861px) {
-  .banner { height: 220px; max-height: 220px; }
+  .banner { height: auto; max-height: none; }
+  .page.with-nav { padding-bottom: 120px; }
   .bottom-nav { max-width: 640px; left: 50%; right: auto; transform: translateX(-50%); width: 100%; border-radius: 18px 18px 0 0; }
 }
 
