@@ -2631,3 +2631,46 @@ img { display: block; }
   display: grid; place-items: center;
   background: var(--pink, #ff2a6d); color: #fff;
 }
+
+/* Desktop room: three regions - chat rail (feed + composer), video stage, action rail.
+   Scoped to non-PK rooms; PK keeps the legacy overlay layout. */
+@media (min-width: 861px) {
+  .room:not(.has-pk) {
+    display: grid;
+    grid-template-columns: 380px minmax(0, 1fr) 84px;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  .room:not(.has-pk) .stage,
+  .room:not(.has-pk) .audio-stage {
+    position: relative; inset: auto;
+    grid-column: 2; grid-row: 1 / 3;
+  }
+  .room:not(.has-pk) .stage-shade { display: none; }
+  .room:not(.has-pk) .chat-list {
+    position: static;
+    grid-column: 1; grid-row: 1;
+    align-self: stretch; max-height: none;
+    margin: 76px 12px 10px;
+    padding: 10px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.05);
+    mask-image: none;
+    justify-content: flex-end;
+  }
+  .room:not(.has-pk) .chat-msg { font-size: 14px; line-height: 1.45; }
+  .room:not(.has-pk) .chat-notice { font-size: 12.5px; }
+  .room:not(.has-pk) .room-bottom { display: contents; }
+  .room:not(.has-pk) .say-hi.composer {
+    grid-column: 1; grid-row: 2;
+    margin: 0 12px calc(12px + var(--safe-b));
+    flex: none;
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .room:not(.has-pk) .say-hi.composer input { font-size: 14px; }
+  .room:not(.has-pk) .room-actions {
+    grid-column: 3; grid-row: 1 / 3;
+    display: flex; flex-direction: column;
+    justify-content: flex-end; align-items: center;
+    gap: 12px; padding-bottom: calc(14px + var(--safe-b));
+  }
+}

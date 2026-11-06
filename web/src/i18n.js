@@ -11,6 +11,7 @@ const en = {
   verified: 'Verified', live: 'LIVE', partyTag: 'PARTY',
   // gifts
   send: 'Send', recharge: 'Recharge', local: 'Local', sendTo: 'Send to', fullScreen: 'Full screen', global: 'Global',
+  chatNotSent: 'Not sent - check your connection',
   confirmTitle: 'Confirm gift', confirmBody: 'You are about to send {coins} coins.', confirmYes: 'Yes, send', cancel: 'Cancel',
   notEnough: 'Not enough coins', dailyLimitHit: 'This gift would cross your daily limit. You can change it in Safety settings.',
   // room

@@ -191,11 +191,26 @@ export default function Room() {
   const mySeat = seats.find((s) => s.user?.id === meId);
   useEffect(() => { if (type === 'audio' && !isHost) av.setSeatMic(!!mySeat).catch(() => { }); }, [type, isHost, !!mySeat]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const chatPending = useRef(false);
+  const composing = useRef(false);
   const sendChat = (e) => {
     e?.preventDefault();
+    if (composing.current) return; // Enter confirming an IME candidate must not send
     const msg = text.trim();
-    if (!msg || !socket) return; // keep the draft when there is no connection
+    if (!msg || !socket || chatPending.current) return; // no duplicate sends while an ack is pending
+    chatPending.current = true;
+    let settled = false;
+    const ackTimer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      chatPending.current = false;
+      toast(t('chatNotSent'), 'error'); // socket dropped: draft is retained for retry
+    }, 5000);
     socket.emit('room:chat', { roomId: Number(id), text: msg }, (r) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(ackTimer);
+      chatPending.current = false;
       if (r && r.ok === false) { r.error && toast(r.error, 'error'); return; } // keep the draft on failure
       setText('');
     });
@@ -280,7 +295,7 @@ export default function Room() {
   );
 
   return (
-    <div className={`room ${type}`}>
+    <div className={`room ${type} ${pk ? 'has-pk' : ''}`}>
       {/* ---------- stage ---------- */}
       {type === 'video' && <div className={`stage ${pk ? 'pk' : ''}`}>{mainVideo}</div>}
       {type === 'video' && pk && <PkOpponent pk={pk} roomId={id} opponent={opponent} livekitUrl={info?.livekit_url} />}
@@ -349,9 +364,13 @@ export default function Room() {
       <div className="room-bottom">
         <form className="say-hi composer" onSubmit={sendChat}>
           <input dir="auto" maxLength={200} value={text} onChange={(e) => setText(e.target.value)}
-            placeholder={t('sayHi')} enterKeyHint="send" aria-label={t('sayHi')} />
+            placeholder={t('sayHi')} enterKeyHint="send" aria-label={t('sayHi')}
+            onCompositionStart={() => (composing.current = true)}
+            onCompositionEnd={() => (composing.current = false)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && (e.nativeEvent.isComposing || composing.current)) e.preventDefault(); }} />
           {text.trim() ? <button className="composer-send" aria-label={t('send')}><Icon name="send" size={16} /></button> : null}
         </form>
+        <div className="room-actions">
         {isHost ? (
           <>
             {type === 'video' && <button className="round-btn" onClick={() => setSheet('pk')} aria-label="PK"><Icon name="vs" /></button>}
@@ -368,6 +387,7 @@ export default function Room() {
             <button className="round-btn gift" onClick={() => setSheet('gift')} aria-label="Gifts"><Icon name="gift" /></button>
           </>
         )}
+        </div>
       </div>
 
       {/* ---------- sheets ---------- */}
