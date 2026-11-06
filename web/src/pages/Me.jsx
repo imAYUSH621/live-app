@@ -19,7 +19,6 @@ export default function Me() {
     ['/agency', 'agency', me.ownedAgency ? 'My agency' : me.agency ? `${t('agency')}: ${me.agency.name}` : t('agency')],
     ['/safety', 'lock', t('safety')],
     ['/me/edit', 'edit', t('editProfile')],
-    ['/admin', 'lock', 'Admin Panel'],
   ];
   const copyId = () => {
     try {
