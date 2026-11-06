@@ -5,6 +5,7 @@ import { useApp } from '../store.jsx';
 import { Avatar, Icon, LevelBadge, Sheet, Spinner, GemIcon, VerifiedBadge } from '../components/ui.jsx';
 import { useT } from '../i18n.js';
 import { useLiveKit } from './useLiveKit.js';
+import { roomHost } from './roomHost.js';
 import { canFallbackToAudio } from './mediaError.js';
 import { EntryLayer, GiftLayer, LikesLayer } from './Layers.jsx';
 import GiftPanel from './GiftPanel.jsx';
@@ -283,7 +284,7 @@ export default function Room() {
     setSheet(null);
   };
 
-  const host = info?.hostCard || info?.room?.host || info?.state?.host;
+  const host = roomHost(info);
   const opponent = useMemo(() => {
     if (!pk || !pkPeople) return null;
     return pk.room_a === id ? pkPeople.b : pkPeople.a;
@@ -359,7 +360,7 @@ export default function Room() {
       <div className="room-sub">
         <button className="chip" onClick={() => setSheet('top')}><Icon name="crown" size={14} /> {t('topFans')}</button>
         {translateOn && <span className="chip"><Icon name="translate" size={14} /> {t('translated')}</span>}
-        <span className="chip muted">ID {host?.publicId || host?.uid || host?.fancy_id}</span>
+        <span className="chip muted">ID {host?.publicId}</span>
       </div>
       {pk && <PkBar pk={pk} roomId={id} />}
 

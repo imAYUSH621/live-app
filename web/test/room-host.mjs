@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import { roomHost } from '../src/live/roomHost.js';
+assert.equal(roomHost(null),undefined);
+assert.equal(roomHost({}),undefined);
+const actual={id:4,uid:'12117748',name:'Dummy Host One',avatar_url:null};
+assert.deepEqual(roomHost({room:{host:actual}}),{...actual,publicId:actual.uid});
+assert.deepEqual(roomHost({state:{host:actual}}),{...actual,publicId:actual.uid});
+assert.equal(roomHost({hostCard:{publicId:'777',name:'Legacy'},room:{host:actual}}).name,'Legacy');
+assert.equal(roomHost({hostCard:{publicId:'777',uid:'888'}}).publicId,'777');
+assert.equal(roomHost({room:{host:{fancy_id:'999'}}}).publicId,'999');
+assert.equal(Object.hasOwn(actual,'publicId'),false);
+console.log('PASS8 room host shape/identity/UID/nonmutation cases');
