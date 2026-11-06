@@ -6,7 +6,7 @@ export default function DesktopNav() {
   // Compile-time flag: Vite inlines VITE_STAGING_DEMO, so demo chrome is dead
   // code (dropped by the minifier) in client builds.
   const stagingDemo = import.meta.env.VITE_STAGING_DEMO === 'true';
-  const { me, login, refresh } = useApp();
+  const { me, login, refresh, config } = useApp();
   const [loggingIn, setLoggingIn] = useState(false);
 
   const quickLogin = async (role) => {
@@ -28,7 +28,7 @@ export default function DesktopNav() {
       <div className="desktop-header-left">
         <div className="desktop-logo-pill">
           <span className="live-pulse-dot" />
-          <span className="desktop-brand-name">OMNISTU LIVE</span>
+          <span className="desktop-brand-name">{(config.appName || 'Omnistu Live').toUpperCase()}</span>
           {stagingDemo && <span className="desktop-edition-badge">ENTERPRISE STAGING DEMO</span>}
         </div>
       </div>

@@ -45,7 +45,16 @@ export function AppProvider({ children }) {
   const login = useCallback((t) => { setToken(t); setTok(t); }, []);
   const logout = useCallback(() => { setToken(null); setTok(null); setMe(null); }, []);
 
-  useEffect(() => { api('/config').then(setConfig).catch(() => {}); }, []);
+  useEffect(() => {
+    api('/config').then((cfg) => {
+      // Brand: the admin-set app name arrives as app.name; expose it as
+      // appName so every surface (login, home, desktop nav, tab title)
+      // follows the configured brand instead of the build-time fallback.
+      const appName = cfg?.app?.name || '';
+      setConfig({ ...cfg, appName });
+      if (appName) document.title = appName;
+    }).catch(() => {});
+  }, []);
   useEffect(() => {
     const h = () => logout();
     window.addEventListener('liveapp:logout', h);
