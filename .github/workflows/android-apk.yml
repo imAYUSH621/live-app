@@ -9,11 +9,10 @@ jobs:
   apk:
     runs-on: ubuntu-latest
     env:
-      # Intentionally NOT a real backend. The test build must fail clearly
-      # instead of silently using a developer-machine LAN address or any
-      # production endpoint. Set a real staging URL only once an approved,
-      # reachable staging backend exists.
-      EXPO_PUBLIC_API_URL: 'https://api-url-not-configured.invalid'
+      # Approved dummy-data test deployment (free Render, synthetic users only).
+      # Previously pointed at .invalid until an approved reachable test backend
+      # existed. Not a production endpoint.
+      EXPO_PUBLIC_API_URL: 'https://liveapp-server-ksvy.onrender.com'
       NODE_ENV: production
     steps:
       - uses: actions/checkout@v4
