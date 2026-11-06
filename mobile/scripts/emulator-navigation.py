@@ -70,7 +70,7 @@ try:
    node=next(n for n in hierarchy().iter('node') if n.get('class')=='android.widget.EditText')
    x1,y1,x2,y2=map(int,re.findall(r'\d+',node.get('bounds')))
    adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2))
-   adb('shell','input','text','Native%sm media%sQA'.replace('m ',''))
+   adb('shell','input','text','Native%sMedia%sQA')
    adb('shell','input','keyevent','KEYCODE_BACK')
    tap('Start Live Broadcast');time.sleep(35);capture('native-stream-outcome')
    # Independent browser receiver owns room cleanup and decoded-frame evidence.
