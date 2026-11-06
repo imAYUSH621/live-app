@@ -39,10 +39,15 @@ export default function Login() {
   const [code, setCode] = useState('');
   const [step, setStep] = useState('phone');
   const [busy, setBusy] = useState(false);
-  const [agree, setAgree] = useState(true);
+  const [agree, setAgree] = useState(false);
   const [showCountryModal, setShowCountryModal] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
   const [resendSec, setResendSec] = useState(0);
+  const [mode, setMode] = useState('phone');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [isRegister, setIsRegister] = useState(false);
 
   const phoneInputRef = useRef(null);
   const otpInputRef = useRef(null);
@@ -130,6 +135,22 @@ export default function Login() {
     setBusy(false);
   };
 
+  const emailAuth = async (e) => {
+    e?.preventDefault();
+    if (!agree) return toast('Please confirm you are 18+ and accept the terms', 'error');
+    setBusy(true);
+    try {
+      const path = isRegister ? '/auth/register' : '/auth/login';
+      const body = isRegister ? { email, password, name: displayName } : { email, password };
+      const r = await api(path, { method: 'POST', body });
+      login(r.token);
+      nav(isRegister ? '/me/edit?welcome=1' : loc.state?.from || '/', { replace: true });
+    } catch (err) {
+      toast(err.message || 'Login failed', 'error');
+    }
+    setBusy(false);
+  };
+
   const directDemoLogin = async (role) => {
     setBusy(true);
     try {
@@ -179,13 +200,74 @@ export default function Login() {
         {/* Auth Card */}
         <div className="login-card-mika">
           {step === 'phone' ? (
-            <form onSubmit={send} className="auth-form-content">
+            <form onSubmit={mode === 'email' ? emailAuth : send} className="auth-form-content">
               <div className="auth-card-header">
                 <h2>Welcome to Omnistu Live</h2>
-                <p>Login or create an account with your phone number</p>
+                <p>{mode === 'email' ? (isRegister ? 'Create your account with email' : 'Sign in with your email') : 'Login or create an account with your phone number'}</p>
               </div>
 
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+                <button type="button" className="edit-num-link" onClick={() => setMode(mode === 'phone' ? 'email' : 'phone')}>
+                  {mode === 'phone' ? 'Use email instead' : 'Use phone instead'}
+                </button>
+              </div>
+
+              {mode === 'email' && (
+                <>
+                  {isRegister && (
+                    <div className="auth-field-group">
+                      <label htmlFor="name-input-field">Display name</label>
+                      <input
+                        id="name-input-field"
+                        type="text"
+                        maxLength={40}
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        placeholder="Your name"
+                        autoComplete="name"
+                        className="mika-phone-text-input"
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                  )}
+                  <div className="auth-field-group">
+                    <label htmlFor="email-input-field">Email</label>
+                    <input
+                      id="email-input-field"
+                      type="email"
+                      maxLength={120}
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      autoComplete="email"
+                      className="mika-phone-text-input"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div className="auth-field-group">
+                    <label htmlFor="password-input-field">Password</label>
+                    <input
+                      id="password-input-field"
+                      type="password"
+                      maxLength={72}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder={isRegister ? 'At least 6 characters' : 'Your password'}
+                      autoComplete={isRegister ? 'new-password' : 'current-password'}
+                      className="mika-phone-text-input"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'center', margin: '4px 0 8px' }}>
+                    <button type="button" className="edit-num-link" onClick={() => setIsRegister(!isRegister)}>
+                      {isRegister ? 'Already have an account? Sign in' : 'New to Omnistu Live? Create an account'}
+                    </button>
+                  </div>
+                </>
+              )}
+
               {/* Phone Input with Country Code Picker */}
+              {mode === 'phone' && (
               <div className="auth-field-group">
                 <label htmlFor="phone-input-field">Phone number or 8-digit ID</label>
                 <div className="mika-phone-wrapper">
@@ -225,6 +307,7 @@ export default function Login() {
                   )}
                 </div>
               </div>
+              )}
 
               {import.meta.env.DEV && (<>
               {/* Demo 1-Click Instant Login */}
@@ -270,14 +353,14 @@ export default function Login() {
               <button
                 type="submit"
                 className="btn primary block mika-main-btn"
-                disabled={busy || !valid}
+                disabled={busy || (mode === 'email' ? !(email.includes('@') && password.length >= 6) : !valid)}
               >
                 {busy ? (
                   <span className="btn-loading">
-                    <span className="btn-spinner" /> Sending OTP…
+                    <span className="btn-spinner" /> {mode === 'email' ? 'Please wait…' : 'Sending OTP…'}
                   </span>
                 ) : (
-                  'Get OTP'
+                  mode === 'email' ? (isRegister ? 'Create account' : 'Sign in') : 'Get OTP'
                 )}
               </button>
             </form>
@@ -339,11 +422,13 @@ export default function Login() {
               />
 
               {/* 1-Tap Test OTP shortcut */}
+              {import.meta.env.DEV && (
               <div className="test-otp-helper">
                 <button type="button" className="test-otp-btn" onClick={fillTestOtp}>
                   ⚡ Auto-Fill 123456 & Login
                 </button>
               </div>
+              )}
 
               {/* Verify Button */}
               <button
@@ -481,10 +566,7 @@ export default function Login() {
 // Country code -> flag emoji (regional indicator letters)
 export const flag = (cc) => {
   const code = String(cc || '').toUpperCase();
-  if (code.length !== 2) return '🌐';
-  try {
-    return code.replace(/./g, (ch) => String.fromCodePoint(127397 + ch.charCodeAt(0)));
-  } catch {
-    return '🌐';
-  }
+  // Regional-indicator emoji flags render as empty boxes on systems without an
+  // emoji font (notably headless/Linux); the ISO code text always renders.
+  return /^[A-Z]{2}$/.test(code) ? code : '🌐';
 };
