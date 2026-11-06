@@ -21,7 +21,14 @@ echo "=== activity dump (liveapp) ==="
 adb shell dumpsys activity activities | grep -i -B2 -A2 'liveapp' | head -40 || true
 echo "=== process/crash state ==="
 adb shell pidof com.liveapp.live || echo "PROCESS_NOT_RUNNING"
+echo "=== wake screen before capture (swiftshader renders black while dozing) ==="
+adb shell input keyevent KEYCODE_WAKEUP || true
+adb shell wm dismiss-keyguard || true
+sleep 5
 adb exec-out screencap -p > diag-emulator-screenshot.png
+echo "=== ui hierarchy dump (structural UI evidence even if pixels are black) ==="
+adb shell uiautomator dump /sdcard/diag-ui.xml || true
+adb pull /sdcard/diag-ui.xml diag-ui-hierarchy.xml || true
 adb logcat -d -v threadtime > diag-emulator-logcat.txt
 grep -a -E 'AndroidRuntime|FATAL|ReactNativeJS|ExpoModulesCore|hermes|libc|DEBUG|liveapp' diag-emulator-logcat.txt | tail -150 > diag-emulator-logcat-filtered.txt || true
 echo "CAPTURE_DONE"
