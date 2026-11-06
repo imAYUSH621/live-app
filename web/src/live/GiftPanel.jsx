@@ -44,7 +44,6 @@ export default function GiftPanel({ open, onClose, roomId, host, seats = [] }) {
   const { wallet, setWallet, toast } = useApp();
   const t = useT();
   const gifts = useGifts();
-  const [confirm, setConfirm] = useState(null);
   const [cat, setCat] = useState('3d');
   const [sel, setSel] = useState(null);
   const [qty, setQty] = useState(1);
@@ -63,7 +62,7 @@ export default function GiftPanel({ open, onClose, roomId, host, seats = [] }) {
   useEffect(() => { if (!sel && gifts.length) setSel(gifts[0]); }, [gifts, sel]);
   useEffect(() => () => clearTimeout(comboTimer.current), []);
 
-  const send = async (isCombo = false, confirmed = false) => {
+  const send = async (isCombo = false) => {
     if (!sel || busy) return;
     if (wallet.coins < sel.coins * qty) {
       toast(t('notEnough'));
@@ -79,9 +78,7 @@ export default function GiftPanel({ open, onClose, roomId, host, seats = [] }) {
       comboTimer.current = setTimeout(() => setCombo(0), 3000);
       if (sel.tier !== 'small') onClose();
     } catch (e) {
-      if (e.code === 'confirm_needed') setConfirm({ isCombo, coins: e.data?.coins, money: e.data?.local });
-      else if (e.code === 'need_age') { toast(e.message, 'error'); nav('/me/edit'); }
-      else if (e.code === 'daily_limit') { toast(t('dailyLimitHit'), 'error'); }
+      if (e.code === 'daily_limit') { toast(t('dailyLimitHit'), 'error'); }
       else toast(e.message, 'error');
     }
     setBusy(false);
@@ -123,17 +120,6 @@ export default function GiftPanel({ open, onClose, roomId, host, seats = [] }) {
           <button className="btn primary send" disabled={!sel || busy} onClick={() => send(false)}>{t('send')}</button>
         </div>
       </Sheet>
-      {confirm && (
-        <div className="modal-wrap" onClick={() => setConfirm(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <img src={sel?.icon} alt="" className="confirm-gift" />
-            <h3>{t('confirmTitle')}</h3>
-            <p>{t('confirmBody', { coins: fmt(confirm.coins), money: confirm.money })}</p>
-            <button className="btn primary" onClick={() => { const c = confirm; setConfirm(null); send(c.isCombo, true); }}>{t('confirmYes')}</button>
-            <button className="btn ghost" onClick={() => setConfirm(null)}>{t('cancel')}</button>
-          </div>
-        </div>
-      )}
     </>
   );
 }

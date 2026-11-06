@@ -43,7 +43,7 @@ export default function Recharge() {
         theme: { color: '#ff3d77' },
       });
       rz.open();
-    } catch (e) { toast(e.message, 'error'); if (e.code === 'need_age') window.location.assign('/me/edit'); }
+    } catch (e) { toast(e.message, 'error'); }
     setBusy(null);
   };
 
