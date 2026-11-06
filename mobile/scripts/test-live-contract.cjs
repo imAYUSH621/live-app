@@ -19,5 +19,12 @@ const api=makeLiveApi({get:async route=>{calls.push(['GET',route]);return [{id:1
  // Guard the adapter against drift from the actual registered server routes.
  const server=fs.readFileSync(path.join(root,'server/src/routes/live.js'),'utf8');
  for(const [method,route] of [['get','/live/feed'],['post','/live/start'],['post','/live/:id/join'],['post','/live/:id/end']])assert(server.includes(`r.${method}('${route}'`));
+ const endpointJs=ts.transpileModule(fs.readFileSync(path.join(root,'mobile/src/api/endpoints.ts'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
+ const endpointOut={};const requests=[];vm.runInNewContext(endpointJs,{exports:endpointOut,require:n=>n==='./client'?{api:{post:(route,body)=>requests.push({route,body}),delete:route=>requests.push({route})}}:{makeLiveApi:()=>({})}});
+ endpointOut.bondsApi.proposeCp(4);assert.equal(requests.at(-1).body.user_id,4);assert.equal(requests.at(-1).route,'/cp/propose');
+ endpointOut.bondsApi.respondCpRequest(12,true);assert.equal(requests.at(-1).body.accept,true);
+ endpointOut.bondsApi.respondCpRequest(12,false);assert.equal(requests.at(-1).body.accept,false);assert.equal(requests.at(-1).route,'/cp/requests/12');
+ endpointOut.bondsApi.breakupCp();assert.equal(requests.at(-1).route,'/cp');
+ console.log('PASS native CP contract: user_id, explicit accept true/false, breakup');
  console.log('PASS native live API: feed metadata/tab, video/audio start, protected join, end, nested host/seats/viewers/likes/PK, missing response, server route registry');
 })().catch(e=>{console.error(e);process.exitCode=1});

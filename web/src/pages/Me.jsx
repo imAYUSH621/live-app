@@ -5,12 +5,13 @@ import { Avatar, BottomNav, CoinIcon, GemIcon, Icon, LevelBadge, Spinner, Verifi
 import { useT } from '../i18n.js';
 
 export default function Me() {
-  const { me, wallet, logout } = useApp();
+  const { me, wallet, logout, toast } = useApp();
   const t = useT();
   const nav = useNavigate();
   if (!me) return <div className="page with-nav"><Spinner /><BottomNav /></div>;
   const u = me.user;
   const rows = [
+    ['/cp', 'heart', 'CP relationship'],
     ['/recharge', 'coin', t('rechargeCoins')],
     ['/store', 'store', t('store')],
     ['/vip', 'crown', t('vip')],

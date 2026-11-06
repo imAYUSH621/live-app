@@ -17,6 +17,7 @@ export const fanLevel = (intimacy) => 1 + Math.floor(Math.sqrt(Number(intimacy |
 r.post('/cp/propose', auth, async (req, res) => {
   const s = await getSettings();
   need(s.features.cp, 'CP is turned off');
+  need(req.body.expected_coins === undefined || Number(req.body.expected_coins) === Number(s.economy.cp_coins), 'CP price changed. Review the current price and try again.');
   const to = int(req.body.user_id);
   need(to && to !== req.user.id, 'Choose someone else');
   const row = await tx(async (c) => {

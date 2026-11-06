@@ -7,6 +7,7 @@ import Login from './pages/Login.jsx';
 import Home from './pages/Home.jsx';
 import GoLive from './pages/GoLive.jsx';
 import Me from './pages/Me.jsx';
+import Couple from './pages/Couple.jsx';
 import Recharge from './pages/Recharge.jsx';
 import Store from './pages/Store.jsx';
 import HostCenter from './pages/HostCenter.jsx';
@@ -45,6 +46,7 @@ function Shell() {
               <Route path="/" element={<Guard><Home /></Guard>} />
               <Route path="/live/:id" element={<Guard><Room /></Guard>} />
               <Route path="/golive" element={<Guard><GoLive /></Guard>} />
+              <Route path="/cp" element={<Guard><Couple /></Guard>} />
               <Route path="/me" element={<Guard><Me /></Guard>} />
               <Route path="/me/edit" element={<Guard><EditProfile /></Guard>} />
               <Route path="/recharge" element={<Guard><Recharge /></Guard>} />

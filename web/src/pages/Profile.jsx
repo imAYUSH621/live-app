@@ -61,6 +61,7 @@ export default function Profile() {
           <div className="row gap center">
             <button className={`btn ${isFollowing ? '' : 'primary'}`} onClick={follow}>{isFollowing ? 'Following' : 'Follow'}</button>
             <Link className="btn" to={`/chat/${id}`}>Message</Link>
+            <Link className="btn" to={`/cp?to=${id}`}>CP proposal</Link>
           </div>
         )}
       </div>
