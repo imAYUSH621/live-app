@@ -15,11 +15,12 @@ test('room composer is persistent and inline, not a sheet', () => {
 test('send clears only on server ack ok, keeps the draft on failure or no socket', () => {
   assert.match(room, /if \(!msg \|\| !socket \|\| chatPending\.current\) return;/);
   assert.match(room, /r\.error && toast\(r\.error, 'error'\); return; \}/);
-  // setText('') must happen inside the ack callback, never optimistically
+  // clearing must happen inside the ack callback, never optimistically
   const fn = room.slice(room.indexOf('const sendChat'));
   const ackIdx = fn.indexOf('socket.emit');
-  const clearIdx = fn.indexOf("setText('')");
+  const clearIdx = fn.indexOf('setText((cur)');
   assert.ok(clearIdx > ackIdx, 'draft cleared before server ack');
+  assert.ok(!fn.includes("setText('')"), 'no blind clear that could wipe text typed mid-flight');
 });
 
 test('composer input keeps focus semantics: always mounted, Enter submits', () => {
@@ -78,4 +79,21 @@ test('rail labels and empty state are translated in en, hi and ar', () => {
     const occurrences = (i18n.match(new RegExp(`${key}:`, 'g')) || []).length;
     assert.ok(occurrences >= 3, `${key} translated in all three languages`);
   }
+});
+
+test('ack success removes only the sent draft, keeping text typed mid-flight', () => {
+  assert.match(room, /setText\(\(cur\) => \(cur\.startsWith\(raw\) \? cur\.slice\(raw\.length\) : cur\)\)/);
+  assert.match(room, /const raw = text;/);
+});
+
+test('each draft carries a stable client id; retry reuses it; server dedupes after broadcast', () => {
+  assert.match(room, /chatCid\.current = `\$\{Date\.now\(\)\}-\$\{Math\.random/);
+  assert.match(room, /text: msg, cid: chatCid\.current/);
+  const sock = fs.readFileSync(new URL('../server/src/socket.js', import.meta.url), 'utf8');
+  assert.match(sock, /\{ roomId, text, cid \} = \{\}, ack/);
+  const handler = sock.slice(sock.indexOf("socket.on('room:chat'"));
+  assert.match(handler, /redis\.get\(cidKey\)\)+\s*return ack/);
+  const broadcastIdx = handler.indexOf("toRoom(roomId, 'room:chat', msg)");
+  const markIdx = handler.indexOf('redis.set(cidKey');
+  assert.ok(markIdx > broadcastIdx, 'dedupe marker written only after broadcast');
 });

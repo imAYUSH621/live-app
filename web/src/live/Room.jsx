@@ -193,12 +193,15 @@ export default function Room() {
 
   const chatPending = useRef(false);
   const composing = useRef(false);
+  const chatCid = useRef(null); // one id per draft, so a retry after a lost ack is deduped server-side
   const sendChat = (e) => {
     e?.preventDefault();
     if (composing.current) return; // Enter confirming an IME candidate must not send
-    const msg = text.trim();
+    const raw = text;
+    const msg = raw.trim();
     if (!msg || !socket || chatPending.current) return; // no duplicate sends while an ack is pending
     chatPending.current = true;
+    if (!chatCid.current) chatCid.current = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     let settled = false;
     const ackTimer = setTimeout(() => {
       if (settled) return;
@@ -206,13 +209,15 @@ export default function Room() {
       chatPending.current = false;
       toast(t('chatNotSent'), 'error'); // socket dropped: draft is retained for retry
     }, 5000);
-    socket.emit('room:chat', { roomId: Number(id), text: msg }, (r) => {
+    socket.emit('room:chat', { roomId: Number(id), text: msg, cid: chatCid.current }, (r) => {
       if (settled) return;
       settled = true;
       clearTimeout(ackTimer);
       chatPending.current = false;
-      if (r && r.ok === false) { r.error && toast(r.error, 'error'); return; } // keep the draft on failure
-      setText('');
+      if (r && r.ok === false) { r.error && toast(r.error, 'error'); return; } // keep the draft and cid for retry
+      chatCid.current = null;
+      // remove only the sent draft; keep anything the user typed while the ack was in flight
+      setText((cur) => (cur.startsWith(raw) ? cur.slice(raw.length) : cur));
     });
   };
   const like = () => { socket?.emit('room:like', { roomId: Number(id), n: 1 }); likeRef.current?.burst(1); };

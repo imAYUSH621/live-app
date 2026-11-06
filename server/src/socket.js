@@ -95,7 +95,7 @@ export function initSocket(httpServer, corsOrigin) {
 
     socket.on('room:leave', async ({ roomId } = {}) => leaveRoom(Number(roomId)).catch(() => {}));
 
-    socket.on('room:chat', async ({ roomId, text } = {}, ack) => {
+    socket.on('room:chat', async ({ roomId, text, cid } = {}, ack) => {
       try {
         roomId = Number(roomId);
         if (!roomId) return ack?.({ ok: false, error: 'Invalid room' });
@@ -106,6 +106,8 @@ export function initSocket(httpServer, corsOrigin) {
         const s = await getSettings();
         const u = await one('SELECT muted_until FROM users WHERE id=$1', [uid]);
         if ((u.muted_until && new Date(u.muted_until) > new Date()) || (await rs.isMuted(roomId, uid))) return ack?.({ ok: false, error: 'You are muted' });
+        const cidKey = cid ? `chatcid:${String(cid).slice(0, 64)}` : null;
+        if (cidKey && (await redis.get(cidKey))) return ack?.({ ok: true }); // retried after a lost ack: already broadcast, do not duplicate
         const slow = await redis.set(`slow:${roomId}:${uid}`, '1', 'PX', s.room.chat_slow_ms, 'NX');
         if (!slow) return ack?.({ ok: false, error: 'Slow down' });
         const clean = (await filterText(String(text || '').slice(0, 200))).text.trim();
@@ -113,6 +115,7 @@ export function initSocket(httpServer, corsOrigin) {
         const fan = await one('SELECT f.intimacy FROM fan_clubs f JOIN rooms r ON r.host_id=f.host_id WHERE r.id=$1 AND f.user_id=$2', [roomId, uid]);
         const msg = { id: `${Date.now()}${uid}`, user: await miniProfile(uid), text: clean, ts: Date.now(), fan_level: fan ? 1 + Math.floor(Math.sqrt(Number(fan.intimacy) / 1000)) : 0 };
         toRoom(roomId, 'room:chat', msg);
+        if (cidKey) await redis.set(cidKey, '1', 'PX', 30000, 'NX'); // mark only after a successful broadcast
         bumpTask(uid, 'chat', 1);
         ack?.({ ok: true });
       } catch (e) {
