@@ -770,6 +770,9 @@ CREATE TABLE IF NOT EXISTS test_artifacts (
   storage_path TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE test_artifacts ADD COLUMN IF NOT EXISTS data BYTEA;
+ALTER TABLE test_artifacts ALTER COLUMN storage_path DROP NOT NULL;
+
 CREATE TABLE IF NOT EXISTS test_artifact_links (
   id BIGSERIAL PRIMARY KEY,
   artifact_id BIGINT NOT NULL REFERENCES test_artifacts(id),

@@ -49,11 +49,12 @@ r.post('/admin/test-artifacts', adminAuth(), express.raw({ type: '*/*', limit: M
   if (!exts) throw bad(`Content type ${mime} not allowed`);
   const ext = ('.' + filename.split('.').pop()).toLowerCase();
   if (!exts.includes(ext)) throw bad(`Extension ${ext} not allowed for ${mime}`);
-  const rel = path.join('artifacts', crypto.randomBytes(12).toString('hex') + '.bin');
-  fs.writeFileSync(path.join(privateRoot, rel), body);
+  // Bytes live in Postgres (data BYTEA), not the service disk: on Render's
+  // ephemeral filesystem any redeploy/restart would silently invalidate every
+  // minted link, while the database survives restarts for its plan lifetime.
   const row = await one(
-    'INSERT INTO test_artifacts(filename, mime, size, sha256, storage_path) VALUES ($1,$2,$3,$4,$5) RETURNING id, created_at',
-    [filename, mime, body.length, actual, rel]);
+    'INSERT INTO test_artifacts(filename, mime, size, sha256, data) VALUES ($1,$2,$3,$4,$5) RETURNING id, created_at',
+    [filename, mime, body.length, actual, body]);
   res.json({ id: row.id, filename, size: body.length, sha256: actual, createdAt: row.created_at });
 });
 
@@ -79,12 +80,10 @@ r.get('/test-artifacts/t/:token', rateLimit({ windowMs: 60_000, limit: 30 }), as
   const token = String(req.params.token || '');
   if (token.length < 20) deny();
   const link = await one(
-    `SELECT l.id, l.expires_at, a.filename, a.mime, a.size, a.sha256, a.storage_path
+    `SELECT l.id, l.expires_at, a.filename, a.mime, a.size, a.sha256, a.storage_path, a.data
      FROM test_artifact_links l JOIN test_artifacts a ON a.id = l.artifact_id
      WHERE l.token_hash=$1`, [sha(Buffer.from(token))]);
   if (!link || new Date(link.expires_at) < new Date()) deny();
-  const file = path.join(privateRoot, link.storage_path);
-  if (!file.startsWith(artifactRoot) || !fs.existsSync(file)) deny();
   await q('UPDATE test_artifact_links SET downloads=downloads+1 WHERE id=$1', [link.id]);
   res.set({
     'Content-Type': link.mime || 'application/octet-stream',
@@ -93,6 +92,11 @@ r.get('/test-artifacts/t/:token', rateLimit({ windowMs: 60_000, limit: 30 }), as
     'X-SHA256': link.sha256,
     'Cache-Control': 'private, no-store',
   });
+  if (link.data) return res.send(link.data);
+  // Legacy disk-stored artifacts (pre-BYTEA): serve if the file still exists,
+  // otherwise the same 404 as an unknown token - never a broken 200.
+  const file = link.storage_path ? path.join(privateRoot, link.storage_path) : null;
+  if (!file || !file.startsWith(artifactRoot) || !fs.existsSync(file)) deny();
   fs.createReadStream(file).pipe(res);
 });
 
