@@ -2583,3 +2583,9 @@ img { display: block; }
   .gift-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .gift-sheet, .sheet { max-width: 640px; }
 }
+
+/* Desktop: proportionate hero + navigation */
+@media (min-width: 861px) {
+  .banner { height: 220px; max-height: 220px; }
+  .bottom-nav { max-width: 640px; left: 50%; right: auto; transform: translateX(-50%); width: 100%; border-radius: 18px 18px 0 0; }
+}
