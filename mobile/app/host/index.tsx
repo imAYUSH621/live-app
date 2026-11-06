@@ -76,6 +76,16 @@ export default function HostCenterScreen() {
                 💎 {formatNumber(centerData?.user?.diamonds || 0)}
               </Text>
             </View>
+
+            <TouchableOpacity
+              style={styles.agencyNavRow}
+              onPress={() => router.push('/host/agency' as any)}
+            >
+              <Text style={styles.agencyNavLabel}>Agency</Text>
+              <Text style={styles.agencyNavDetail}>
+                {host?.agency_name ? `${host.agency_name} ›` : 'Join or answer invites ›'}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Today's Stats Grid */}
@@ -197,6 +207,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: spacing.md,
+  },
+  agencyNavRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  agencyNavLabel: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  agencyNavDetail: {
+    color: '#64748B',
+    fontSize: 13,
   },
   agencyLabel: {
     color: colors.gold.light,
