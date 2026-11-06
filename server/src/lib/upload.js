@@ -104,6 +104,14 @@ export function cloudinaryEnabled() {
   return config.storageBackend === 'cloudinary' && !!(c.cloudName && c.apiKey && c.apiSecret);
 }
 
+// Effective provider health: starts optimistic, flips false on the first
+// failed upload so /api/health can report that uploads are actually landing
+// on ephemeral local disk even while a cloud backend is configured.
+let lastCloudinaryOk = true;
+export function cloudinaryHealthy() {
+  return lastCloudinaryOk;
+}
+
 async function cloudinaryRequest(action, formFields, signFields) {
   const c = config.cloudinary;
   const timestamp = Math.floor(Date.now() / 1000);
@@ -157,9 +165,11 @@ export async function storeUpload(file, { sensitive = null, keepLocal = false } 
   if (cloudinaryEnabled()) {
     try {
       const url = await cloudinaryUpload(file.path, 'liveapp/' + new Date().toISOString().slice(0, 7));
+      lastCloudinaryOk = true;
       fs.unlink(file.path, () => {});
       return url;
     } catch (e) {
+      lastCloudinaryOk = false;
       console.warn('[storage] cloudinary upload failed, keeping local copy:', e.message);
     }
   }
