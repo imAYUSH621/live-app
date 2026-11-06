@@ -35,11 +35,30 @@ check('dev without opt-ins -> kyc bypass INACTIVE', f.kyc_bypass_active === fals
 f = await flagsWith({ NODE_ENV: 'production' });
 const keys = Object.keys(f).sort();
 check('readiness keys are the documented set', JSON.stringify(keys) === JSON.stringify([
-  'cloudinary_configured','demo_login_active','firebase_configured','kyc_bypass_active','livekit_host','node_env','otp_provider','razorpay_enabled','sightengine_configured','test_artifacts_enabled','turn_configured','twofactor_configured'
+  'cloudinary_configured','demo_login_active','firebase_configured','kyc_bypass_active','livekit_host','node_env','otp_deliverable','otp_provider','razorpay_enabled','sightengine_configured','test_artifacts_enabled','turn_configured','twofactor_configured'
 ].sort()), keys.join(','));
 const leak = /secret|password|key\b|token|jwt/i.test(keys.join(' ').replace('twofactor_configured','').replace('test_artifacts_enabled',''));
 check('no secret-ish field names beyond *_configured booleans', !leak);
 check('values are booleans / short labels only', Object.values(f).every(v => typeof v === 'boolean' || v === 'production' || v === 'console' || typeof v === 'string' && v.length < 60));
+
+// 2c. OTP fail-closed: production + no SMS provider must refuse, before any DB write
+{
+  const m = await import('../server/src/services/demo.js?x=' + Math.random());
+  // child-process truth: 2factor+key -> deliverable; console -> not
+  const { execFileSync } = await import('node:child_process');
+  const run = (env) => JSON.parse(execFileSync(process.execPath, ['--input-type=module','-e',
+    "import { otpDeliverable } from './server/src/services/demo.js'; console.log(JSON.stringify(otpDeliverable()));",
+  ], { cwd: new URL('..', import.meta.url).pathname,
+       env: { PATH: process.env.PATH, HOME: process.env.HOME, JWT_SECRET: 'x', ADMIN_PASSWORD: 'y', ...env } }).toString().trim());
+  check('otpDeliverable false with console provider (default)', run({}) === false);
+  check('otpDeliverable false with 2factor but no key', run({ OTP_PROVIDER: '2factor' }) === false);
+  check('otpDeliverable true with 2factor + key', run({ OTP_PROVIDER: '2factor', TWOFACTOR_API_KEY: 'k' }) === true);
+}
+const authSrc = readFileSync(new URL('../server/src/routes/auth.js', import.meta.url), 'utf8');
+check('otp/send has the production fail-closed guard', authSrc.includes('if (!isDemo && !otpDeliverable())'));
+check('fail-closed guard runs BEFORE the otp_codes insert', authSrc.indexOf('if (!isDemo && !otpDeliverable())') < authSrc.indexOf('INSERT INTO otp_codes'));
+check('guard message is user-clear and code-free', authSrc.includes('Phone sign-in is temporarily unavailable'));
+check('readiness exposes otp_deliverable', readFileSync(new URL('../server/src/services/demo.js', import.meta.url), 'utf8').includes('otp_deliverable: otpDeliverable()'));
 
 // 3. Wiring: single helper source of truth; no inline env checks left in routes
 const auth = readFileSync(new URL('../server/src/routes/auth.js', import.meta.url), 'utf8');
