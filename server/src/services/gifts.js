@@ -24,7 +24,7 @@ function pickWeighted(table) {
  * One DB transaction: debit sender coins -> credit receiver diamonds -> ledger -> stats.
  * Then realtime broadcast (gift animation, global banner, PK score).
  */
-export async function sendGift({ senderId, receiverId, giftId, qty = 1, context = 'room', roomId = null, momentId = null, callId = null }) {
+export async function sendGift({ senderId, receiverId, giftId, qty = 1, context = 'room', roomId = null, momentId = null, callId = null, confirmToken = null }) {
   qty = Math.max(1, Math.min(9999, parseInt(qty, 10) || 1));
   need(senderId !== receiverId, 'You cannot send a gift to yourself');
   const settings = await getSettings();
@@ -70,6 +70,17 @@ export async function sendGift({ senderId, receiverId, giftId, qty = 1, context 
   let pkId = room ? await rs.getPk(room.id) : null;
 
   const result = await tx(async (c) => {
+    if (qty > 1) {
+      // Bulk sends require a one-use confirmation bound to this user, gift, qty
+      // and the current price; consuming it here makes double-submits safe.
+      const ok = await c.one(
+        `UPDATE gift_confirmations SET used=true
+          WHERE token=$1 AND user_id=$2 AND gift_id=$3 AND qty=$4 AND coins=$5
+            AND NOT used AND expires_at > now()
+        RETURNING token`,
+        [confirmToken || '', senderId, gift.id, qty, coins]);
+      if (!ok) throw bad('Please review the total and confirm this bulk gift', 'confirm_needed');
+    }
     await checkSpend(c, senderId, coins);
     const balance = await changeCoins(c, senderId, -coins, 'gift_send', { refType: 'gift', refId: gift.id, note: `${gift.name} x${qty}` });
     await changeDiamonds(c, receiverId, diamonds, 'gift_receive', { refType: 'gift', refId: gift.id, note: `${gift.name} x${qty}` });

@@ -1,6 +1,6 @@
 // Repeatable test: every error code the web client branches on must be a code
 // the server actually emits. Regression guard for the dead-branch class found
-// in the #31 follow-up audit (need_age / confirm_needed / challenge_expired
+// in the #31 follow-up audit (need_age / challenge_expired; confirm_needed
 // were client branches the server never produced).
 // Run: node scripts/test-guard-codes.test.mjs
 import { readFileSync } from 'node:fs';
@@ -34,7 +34,7 @@ console.log('server emits:', serverCodes.join(', ') || '(none)');
 for (const c of webCodes) check(`web code '${c}' is server-emitted`, serverCodes.includes(c));
 
 // Dead codes removed from the client
-for (const dead of ['need_age', 'confirm_needed', 'challenge_expired']) {
+for (const dead of ['need_age', 'challenge_expired']) {
   check(`dead code '${dead}' absent from web`, !webCodes.includes(dead));
 }
 

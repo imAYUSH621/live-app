@@ -11,7 +11,7 @@ const en = {
   verified: 'Verified', live: 'LIVE', partyTag: 'PARTY',
   // gifts
   send: 'Send', recharge: 'Recharge', local: 'Local', sendTo: 'Send to', fullScreen: 'Full screen', global: 'Global',
-  confirmTitle: 'Confirm gift', confirmBody: 'You are about to send {coins} coins (about {money}).', confirmYes: 'Yes, send', cancel: 'Cancel',
+  confirmTitle: 'Confirm gift', confirmBody: 'You are about to send {coins} coins.', confirmYes: 'Yes, send', cancel: 'Cancel',
   notEnough: 'Not enough coins', dailyLimitHit: 'This gift would cross your daily limit. You can change it in Safety settings.',
   // room
   sayHi: 'Say hi…', saySomething: 'Say something nice…', topFans: 'Top fans', viewers: 'Viewers', more: 'More', report: 'Report this live',
@@ -47,7 +47,7 @@ const hi = {
   cat_study: 'पढ़ाई', cat_dance: 'डांस', cat_cooking: 'कुकिंग', cat_fitness: 'फिटनेस', cat_games: 'गेम्स',
   verified: 'वेरिफ़ाइड', live: 'लाइव', partyTag: 'पार्टी',
   send: 'भेजें', recharge: 'रिचार्ज', local: 'मेरे देश के', sendTo: 'किसे भेजें', fullScreen: 'फुल स्क्रीन', global: 'ग्लोबल',
-  confirmTitle: 'गिफ्ट कन्फर्म करें', confirmBody: 'आप {coins} कॉइन (लगभग {money}) का गिफ्ट भेज रहे हैं।', confirmYes: 'हाँ, भेजें', cancel: 'रद्द करें',
+  confirmTitle: 'गिफ्ट कन्फर्म करें', confirmBody: 'आप {coins} कॉइन का गिफ्ट भेज रहे हैं।', confirmYes: 'हाँ, भेजें', cancel: 'रद्द करें',
   notEnough: 'कॉइन कम हैं', dailyLimitHit: 'यह गिफ्ट आपकी रोज़ की सीमा से ज़्यादा हो जाएगा। सीमा सुरक्षा सेटिंग में बदल सकते हैं।',
   sayHi: 'कुछ कहें…', saySomething: 'कुछ अच्छा लिखें…', topFans: 'टॉप फैन', viewers: 'दर्शक', more: 'और', report: 'इस लाइव की शिकायत करें',
   effectsOff: 'गिफ्ट इफ़ेक्ट बंद करें', effectsOn: 'गिफ्ट इफ़ेक्ट चालू करें', translateOn: 'चैट मेरी भाषा में अनुवाद करें', translateOff: 'चैट जैसी लिखी है वैसी दिखाएँ',
@@ -79,7 +79,7 @@ const ar = {
   cat_study: 'دراسة', cat_dance: 'رقص', cat_cooking: 'طبخ', cat_fitness: 'لياقة', cat_games: 'ألعاب',
   verified: 'موثّق', live: 'مباشر', partyTag: 'حفلة',
   send: 'إرسال', recharge: 'شحن', local: 'محلي', sendTo: 'أرسل إلى', fullScreen: 'ملء الشاشة', global: 'عالمي',
-  confirmTitle: 'تأكيد الهدية', confirmBody: 'ستُرسل {coins} عملة (حوالي {money}).', confirmYes: 'نعم، أرسل', cancel: 'إلغاء',
+  confirmTitle: 'تأكيد الهدية', confirmBody: 'ستُرسل {coins} عملة.', confirmYes: 'نعم، أرسل', cancel: 'إلغاء',
   notEnough: 'العملات غير كافية', dailyLimitHit: 'هذه الهدية تتجاوز حدك اليومي. يمكنك تغييره من إعدادات الأمان.',
   sayHi: 'قل مرحباً…', saySomething: 'اكتب شيئاً لطيفاً…', topFans: 'كبار الداعمين', viewers: 'المشاهدون', more: 'المزيد', report: 'الإبلاغ عن هذا البث',
   effectsOff: 'إيقاف مؤثرات الهدايا', effectsOn: 'تشغيل مؤثرات الهدايا', translateOn: 'ترجمة الدردشة إلى لغتي', translateOff: 'عرض الدردشة كما كُتبت',
