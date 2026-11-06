@@ -12,7 +12,7 @@ import { seed } from './seed.js';
 import { syncFxLibrary, FX_DIR } from './fxLibrary.js';
 import { initSocket } from './socket.js';
 import { startJobs } from './jobs.js';
-import { uploadRoot, privateRoot, privateUploadAuth, cloudinaryEnabled } from './lib/upload.js';
+import { uploadRoot, privateRoot, privateUploadAuth, cloudinaryEnabled, cloudinaryHealthy } from './lib/upload.js';
 import { getSettings } from './lib/settings.js';
 import { verifyToken } from './lib/auth.js';
 import { livekitHealthy } from './lib/livekit.js';
@@ -101,7 +101,13 @@ app.get('/api/health', async (_req, res) => {
     livekit_webhook: { configured: !!config.livekit.webhookUrl, delivered: webhookDelivered },
     // Media persistence is observable on purpose: on hosts without a
     // persistent disk the local backend loses uploads on restart/redeploy.
-    storage: { backend: cloudinaryEnabled() ? 'cloudinary' : 'local', persistent: cloudinaryEnabled() },
+    storage: {
+      backend: cloudinaryEnabled() ? 'cloudinary' : 'local',
+      // False when uploads actually land on local disk - either no cloud
+      // backend configured, or the configured one is failing (degraded).
+      persistent: cloudinaryEnabled() && cloudinaryHealthy(),
+      degraded: cloudinaryEnabled() && !cloudinaryHealthy(),
+    },
   });
 });
 
