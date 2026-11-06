@@ -2711,3 +2711,6 @@ img { display: block; }
  .chat-list { bottom:calc(78px + var(--safe-b)); }
  .say-hi.composer { width:100%;min-height:44px; }
 }
+
+/* Explicit readable CP confirmation on the dark desktop shell. */
+.cp-sheet, .cp-sheet p { color: var(--text); }

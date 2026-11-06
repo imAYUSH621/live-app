@@ -221,10 +221,10 @@ export const socialApi = {
 };
 
 export const bondsApi = {
-  proposeCp: (targetUserId: number) => api.post<any>('/cp/propose', { target_user_id: targetUserId }),
+  proposeCp: (targetUserId: number) => api.post<any>('/cp/propose', { user_id: targetUserId }),
   getCpRequests: () => api.get<any[]>('/cp/requests'),
   respondCpRequest: (requestId: number, accept: boolean) =>
-    api.post<any>(`/cp/requests/${requestId}`, { action: accept ? 'accept' : 'reject' }),
+    api.post<any>(`/cp/requests/${requestId}`, { accept }),
   breakupCp: () => api.delete<{ ok: boolean }>('/cp'),
   getFanClub: (hostId: number) => api.get<any>(`/fan-club/${hostId}`),
   joinFanClub: (hostId: number) => api.post<any>(`/fan-club/${hostId}/join`),
