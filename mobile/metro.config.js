@@ -23,6 +23,17 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   ) {
     return { type: 'sourceFile', filePath: queryStringShim };
   }
+  // @expo/metro-runtime (location/install.native.ts) lazily requires
+  // 'web-streams-polyfill/ponyfill/es6' inside try{}. web-streams-polyfill v4's
+  // exports map dropped that subpath, so Metro silently omits the dependency
+  // and the lazy global.ReadableStream getter throws
+  // "Requiring unknown module undefined" on first access - which aborts
+  // LiveKit's registerGlobals (caught by our root layout's guard, leaving the
+  // whole WebRTC/media stack unregistered). v4's package main IS the ponyfill,
+  // so alias the removed subpath to the package root.
+  if (moduleName === 'web-streams-polyfill/ponyfill/es6') {
+    return context.resolveRequest(context, 'web-streams-polyfill', platform);
+  }
   if (previousResolveRequest) {
     return previousResolveRequest(context, moduleName, platform);
   }
