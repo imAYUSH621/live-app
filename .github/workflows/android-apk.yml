@@ -138,6 +138,38 @@ jobs:
         with:
           name: app-release-test-diag-x86_64-apk
           path: mobile/android/app/build/outputs/apk/release/app-release-test-diag.apk
+      - name: Regenerate android project WITHOUT diagnostics (plain release)
+        working-directory: mobile
+        env:
+          CI: '1'
+        run: |
+          rm -rf android
+          npx expo prebuild --platform android --non-interactive
+          if grep -rq "DiagnosticErrorActivity" android/; then echo "ERROR: diagnostic leftovers in plain build"; exit 1; fi
+      - name: Restrict plain build to x86_64 via Gradle abiFilters
+        working-directory: mobile
+        run: |
+          sed -i "s/\(versionName .*\)/\1\n        ndk { abiFilters 'x86_64' }/" android/app/build.gradle
+          grep -q "abiFilters 'x86_64'" android/app/build.gradle || { echo "ERROR: abiFilters not applied"; exit 1; }
+      - name: Build plain release APK with embedded JS bundle
+        working-directory: mobile/android
+        run: ./gradlew assembleRelease --no-daemon
+      - name: Sign plain APK with the same TEST-ONLY debug key
+        run: |
+          keytool -genkeypair -v -keystore test-only.keystore \
+            -alias testonly -storepass android -keypass android \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=TEST ONLY debug build, O=Unconfigured staging test, C=IN"
+          BT=$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)
+          APK=$(ls mobile/android/app/build/outputs/apk/release/*.apk | head -1)
+          "$ANDROID_HOME/build-tools/$BT/apksigner" sign \
+            --ks test-only.keystore --ks-pass pass:android --key-pass pass:android \
+            --out mobile/android/app/build/outputs/apk/release/app-release-test-plain.apk \
+            "$APK"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-release-test-plain-x86_64-apk
+          path: mobile/android/app/build/outputs/apk/release/app-release-test-plain.apk
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -160,7 +192,9 @@ jobs:
         with:
           name: emulator-diagnostic-capture
           path: |
-            diag-emulator-screenshot.png
-            diag-emulator-logcat.txt
-            diag-emulator-logcat-filtered.txt
+            diag-*-screenshot.png
+            diag-*-screenshot2.png
+            diag-*-logcat.txt
+            diag-*-logcat-filtered.txt
+            diag-ui-hierarchy-*.xml
           if-no-files-found: warn
