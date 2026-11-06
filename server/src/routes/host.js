@@ -170,4 +170,17 @@ r.post('/agency/invites/:id/:action', auth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// Join an agency by its code (approved hosts not currently in one).
+r.post('/agency/join', auth, async (req, res) => {
+  const h = await one(`SELECT * FROM hosts WHERE user_id=$1 AND status='approved'`, [req.user.id]);
+  need(h, 'Only approved hosts can join an agency');
+  need(!h.agency_id, 'You are already in an agency. Leave it first (allowed 30 days after joining).');
+  const code = str(req.body.code, 20).toUpperCase();
+  const a = await one(`SELECT * FROM agencies WHERE code=$1 AND status='active'`, [code]);
+  if (!a) throw notFound('Agency code not found');
+  await q('UPDATE hosts SET agency_id=$2, agency_joined_at=now() WHERE user_id=$1', [req.user.id, a.id]);
+  if (a.owner_user_id) toUser(a.owner_user_id, 'notify', { type: 'agency', text: `${req.user.name} joined your agency` });
+  res.json({ ok: true, agency: { id: a.id, name: a.name } });
+});
+
 export default r;
