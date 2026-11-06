@@ -22,6 +22,7 @@ import Banned from './pages/Banned.jsx';
 import GlobalBanner from './live/GlobalBanner.jsx';
 import DesktopNav from './components/DesktopNav.jsx';
 import DesktopDock from './components/DesktopDock.jsx';
+import { STAGING_DEMO } from './demo.js';
 
 function Guard({ children }) {
   const { token } = useApp();
@@ -35,7 +36,7 @@ function Shell() {
     <div className="desktop-root-container">
       <DesktopNav />
       <div className="desktop-stage-layout">
-        <DesktopDock />
+        {STAGING_DEMO && <DesktopDock />}
         <main className="mobile-phone-viewport-wrapper">
           <div className="app">
             <GlobalBanner />

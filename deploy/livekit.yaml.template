@@ -11,6 +11,11 @@ redis:
   address: 127.0.0.1:6379
 keys:
   __LIVEKIT_API_KEY__: __LIVEKIT_API_SECRET__
+webhook:
+  api_key: __LIVEKIT_API_KEY__
+  urls:
+    # API is published on localhost only (see docker-compose api ports).
+    - http://127.0.0.1:4000/api/livekit/webhook
 room:
   empty_timeout: 300
   max_participants: 2000

@@ -16,6 +16,7 @@ import { uploadRoot } from './lib/upload.js';
 import { getSettings } from './lib/settings.js';
 import { verifyToken } from './lib/auth.js';
 import { livekitHealthy } from './lib/livekit.js';
+import { livekitWebhook } from './routes/livekit-webhook.js';
 import { razorpayWebhookValid, creditOrder } from './services/recharge.js';
 import { one } from './db.js';
 
@@ -58,6 +59,9 @@ app.post('/api/webhooks/razorpay', express.raw({ type: '*/*', limit: '1mb' }), a
   res.json({ ok: true });
 });
 
+// LiveKit SFU lifecycle webhook reconciles stale publish grants (raw body for signature)
+app.post('/api/livekit/webhook', express.raw({ type: '*/*', limit: '1mb' }), livekitWebhook);
+
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -79,7 +83,8 @@ app.get('/', (_req, res) => {
 app.get('/api/health', async (_req, res) => {
   const db = await pool.query('SELECT 1').then(() => true).catch(() => false);
   const rd = (await redis.ping().catch(() => '')) === 'PONG';
-  res.status(db && rd ? 200 : 503).json({ ok: db && rd, db, redis: rd, livekit: await livekitHealthy() });
+  const webhookDelivered = !!(await redis.get('lk:webhook:delivered').catch(() => null));
+  res.status(db && rd ? 200 : 503).json({ ok: db && rd, db, redis: rd, livekit: await livekitHealthy(), livekit_webhook: { configured: !!config.livekit.webhookUrl, delivered: webhookDelivered } });
 });
 
 // Maintenance mode: blocks app users (admin/agency/seller panels keep working)

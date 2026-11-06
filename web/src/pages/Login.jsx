@@ -6,7 +6,7 @@ import AnimPlayer from '../components/AnimPlayer.jsx';
 import { Icon } from '../components/ui.jsx';
 
 // Initial global countries with codes and dial codes for instant search & zero-lag UX
-const DEFAULT_COUNTRIES = [
+export const DEFAULT_COUNTRIES = [
   { code: 'IN', name: 'India', dial: '91', language: 'en' },
   { code: 'AE', name: 'United Arab Emirates', dial: '971', language: 'en' },
   { code: 'SA', name: 'Saudi Arabia', dial: '966', language: 'en' },
@@ -226,6 +226,7 @@ export default function Login() {
                 </div>
               </div>
 
+              {import.meta.env.DEV && (<>
               {/* Demo 1-Click Instant Login */}
               <div className="demo-shortcuts" style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(255, 42, 109, 0.05)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255, 42, 109, 0.15)', marginTop: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -250,6 +251,7 @@ export default function Login() {
                   Or enter any mobile number. Demo OTP is <b>123456</b>.
                 </div>
               </div>
+              </>)}
 
               {/* Terms Checkbox */}
               <label className="mika-check-label">

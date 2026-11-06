@@ -18,17 +18,57 @@ export default function GoLive() {
   const [cover, setCover] = useState(null);
   const [busy, setBusy] = useState(false);
   const nav = useNavigate();
-  const user = me?.user;
+  const user = me;
 
-  if (user && user.hostStatus === 'suspended') {
+  if (user && (!user.isHost || !user.verified || user.hostStatus !== 'approved')) {
+    if (user.hostStatus === 'suspended') {
+      return (
+        <div className="page">
+          <Header title={t('goLive')} />
+          <div className="card center-text">
+            <div style={{ fontSize: '48px', color: '#ef4444', marginBottom: '8px' }}>⛔</div>
+            <h2 style={{ color: '#ef4444' }}>Host Account Suspended</h2>
+            <p className="muted">Your host broadcasting privileges have been suspended by Admin. You cannot go live while suspended.</p>
+            <Link to="/safety" className="btn primary block">View Safety & Appeals</Link>
+          </div>
+        </div>
+      );
+    }
+    if (user.hostStatus === 'pending') {
+      return (
+        <div className="page">
+          <Header title={t('goLive')} />
+          <div className="card center-text">
+            <Icon name="shield" size={48} />
+            <h2>Verification Under Review</h2>
+            <p className="muted">Your Aadhaar and live photo verification has been submitted and is currently under review by our Admin team. You can go live as soon as admin approves.</p>
+            <Link to="/verify" className="btn primary block">View Verification Status</Link>
+          </div>
+        </div>
+      );
+    }
+    if (user.hostStatus === 'rejected') {
+      return (
+        <div className="page">
+          <Header title={t('goLive')} />
+          <div className="card center-text">
+            <Icon name="lock" size={48} />
+            <h2>Verification Needs Fix</h2>
+            <p className="muted">Your previous verification needs corrections. Please review the admin note and re-submit your Aadhaar & live selfie.</p>
+            <button className="btn primary block" onClick={() => nav('/verify')}>Re-submit Verification</button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="page">
         <Header title={t('goLive')} />
         <div className="card center-text">
-          <div style={{ fontSize: '48px', color: '#ef4444', marginBottom: '8px' }}>⛔</div>
-          <h2 style={{ color: '#ef4444' }}>Host Account Suspended</h2>
-          <p className="muted">Your host broadcasting privileges have been suspended by Admin.</p>
-          <Link to="/safety" className="btn primary block">View Safety & Appeals</Link>
+          <Icon name="cam" size={48} />
+          <h2>Host Verification Required</h2>
+          <p className="muted">To start live streaming and earn diamonds, you must verify your identity with Aadhaar / Govt ID and a live selfie.</p>
+          <button className="btn primary block" onClick={() => nav('/verify')}>Verify Aadhaar & Live Photo</button>
+          <Link to="/agency" className="btn ghost block">Join an agency with a code</Link>
         </div>
       </div>
     );
@@ -53,9 +93,7 @@ export default function GoLive() {
     <div className="page">
       <Header title={t('goLive')} />
       <div className="golive">
-        <div className="pill success" style={{ background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0', padding: '6px 12px', borderRadius: '8px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px', fontWeight: '500' }}>
-          <Icon name="shield" size={16} /> Verified Host • Live Streaming Authorized (Staging Demo)
-        </div>
+        {!user?.verified && <Link to="/verify" className="pill warn block-link"><Icon name="shield" size={16} /> {t('verifyFirst')} ›</Link>}
         <div className="seg">
           <button className={type === 'video' ? 'on' : ''} onClick={() => setType('video')}><Icon name="cam" /> {t('videoLive')}</button>
           <button className={type === 'audio' ? 'on' : ''} onClick={() => setType('audio')}><Icon name="mic" /> {t('partyRoom')}</button>

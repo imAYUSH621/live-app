@@ -8,7 +8,10 @@ export function useCountdown(endsAt) {
   const [left, setLeft] = useState(0);
   useEffect(() => {
     if (!endsAt) return undefined;
-    const tick = () => setLeft(Math.max(0, Math.round((Number(endsAt) - Date.now()) / 1000)));
+    // ends_at arrives as an ISO timestamp string from the API
+    const endMs = typeof endsAt === 'number' ? endsAt : Date.parse(endsAt);
+    if (!Number.isFinite(endMs)) return undefined;
+    const tick = () => setLeft(Math.max(0, Math.round((endMs - Date.now()) / 1000)));
     tick();
     const t = setInterval(tick, 500);
     return () => clearInterval(t);
@@ -36,15 +39,14 @@ export function PkBar({ pk, roomId }) {
 }
 
 // Right half of the screen during a PK: the opponent's live video.
-export function PkOpponent({ pk, roomId, opponent }) {
+export function PkOpponent({ pk, roomId, opponent, livekitUrl }) {
   const oppEl = useRef(null);
-  const oppRoom = pk.room_a === roomId ? pk.room_b : pk.room_a;
-  const info = useOpponentVideo(oppRoom, oppEl);
+  const info = useOpponentVideo(pk, roomId, livekitUrl, oppEl);
   return (
     <div className="pk-opponent">
       <div ref={oppEl} className="stage-video-box" />
       {!info.live && (
-        <div className="stage-cover"><img src={opponent?.avatar || '/icon.svg'} alt="" /><span>{info.demo ? 'Demo mode: opponent video needs Agora' : 'Connecting…'}</span></div>
+        <div className="stage-cover"><img src={opponent?.avatar || '/icon.svg'} alt="" /><span>Connecting…</span></div>
       )}
       {opponent && <div className="pk-opp-name"><Avatar user={opponent} size={22} frame={false} />{opponent.name}</div>}
     </div>
@@ -67,9 +69,9 @@ export function PkInviteSheet({ open, onClose, roomId }) {
   const { toast } = useApp();
   const [list, setList] = useState(null);
   const [waiting, setWaiting] = useState(false);
-  useEffect(() => { if (open) api('/pk/opponents').then(setList).catch(() => setList([])); }, [open]);
+  useEffect(() => { if (open) api('/pk/candidates').then(setList).catch(() => setList([])); }, [open]);
   const invite = async (target) => {
-    try { await api('/pk/invite', { method: 'POST', body: { roomId, targetRoomId: target.id } }); toast(`Invite sent to ${target.host.name}`); onClose(); }
+    try { await api('/pk/invite', { method: 'POST', body: { room_id: target.id } }); toast(`Invite sent to ${target.name}`); onClose(); }
     catch (e) { toast(e.message, 'error'); }
   };
   const random = async () => {
@@ -88,8 +90,8 @@ export function PkInviteSheet({ open, onClose, roomId }) {
       <div className="list">
         {!list ? <p className="muted">Loading…</p> : list.length === 0 ? <Empty text="No other hosts live right now" /> : list.map((r) => (
           <div key={r.id} className="list-row">
-            <Avatar user={r.host} size={40} />
-            <div className="grow"><b>{r.host.name}</b><small>{fmt(r.viewers)} watching</small></div>
+            <Avatar user={{ name: r.name, avatar_url: r.avatar_url }} size={40} />
+            <div className="grow"><b>{r.name}</b><small>{r.title || 'Live now'}</small></div>
             <button className="btn small" onClick={() => invite(r)}>Invite</button>
           </div>
         ))}
@@ -102,7 +104,7 @@ export function PkInviteModal({ invite, onClose }) {
   const { toast } = useApp();
   if (!invite) return null;
   const act = async (a) => {
-    try { await api(`/pk/${invite.pkId}/${a}`, { method: 'POST' }); }
+    try { await api(`/pk/${invite.pk_id}/${a}`, { method: 'POST' }); }
     catch (e) { toast(e.message, 'error'); }
     onClose();
   };
@@ -113,7 +115,7 @@ export function PkInviteModal({ invite, onClose }) {
         <h3>{invite.from.name} wants a PK battle</h3>
         <p className="muted">5 minutes. The host with more gift points wins.</p>
         <div className="row gap">
-          <button className="btn ghost" onClick={() => act('reject')}>Decline</button>
+          <button className="btn ghost" onClick={() => act('decline')}>Decline</button>
           <button className="btn primary" onClick={() => act('accept')}>Accept</button>
         </div>
       </div>

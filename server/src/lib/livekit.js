@@ -1,7 +1,12 @@
 import { AccessToken, RoomServiceClient } from 'livekit-server-sdk';
+import { TrackSource } from '@livekit/protocol';
 import { config } from '../config.js';
 
 const svc = new RoomServiceClient(config.livekit.apiUrl, config.livekit.apiKey, config.livekit.apiSecret);
+
+/** Audio-only publish sources: guests in audio (party) rooms get a mic, never a camera. */
+export const AUDIO_ONLY = [TrackSource.MICROPHONE];
+export { TrackSource };
 
 /**
  * Create a LiveKit (WebRTC SFU) access token.

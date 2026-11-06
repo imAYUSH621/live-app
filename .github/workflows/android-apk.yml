@@ -1,0 +1,78 @@
+name: Android test APK
+on:
+  push:
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/android-apk.yml'
+  workflow_dispatch:
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    env:
+      # Intentionally NOT a real backend. The test build must fail clearly
+      # instead of silently using a developer-machine LAN address or any
+      # production endpoint. Set a real staging URL only once an approved,
+      # reachable staging backend exists.
+      EXPO_PUBLIC_API_URL: 'https://api-url-not-configured.invalid'
+      NODE_ENV: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Install app dependencies
+        working-directory: mobile
+        run: npm ci --legacy-peer-deps
+      - name: Generate android project
+        working-directory: mobile
+        env:
+          CI: '1'
+        run: npx expo prebuild --platform android --non-interactive
+      - name: Restrict test build to arm64-v8a via Gradle abiFilters
+        working-directory: mobile
+        run: |
+          # Modern 64-bit phones only, to keep the artifact small enough to
+          # send for device testing. Done through Gradle packaging (not zip
+          # mutation) so alignment and signing stay intact.
+          sed -i "s/\(versionName .*\)/\1\n        ndk { abiFilters 'arm64-v8a' }/" android/app/build.gradle
+          grep -q "abiFilters 'arm64-v8a'" android/app/build.gradle || { echo "ERROR: abiFilters not applied"; exit 1; }
+      - name: Build release APK with embedded JS bundle
+        working-directory: mobile/android
+        run: ./gradlew assembleRelease --no-daemon
+      - name: Verify bundle, single ABI, alignment and signature
+        run: |
+          APK=$(ls mobile/android/app/build/outputs/apk/release/*.apk | head -1)
+          unzip -l "$APK" | grep -q 'assets/index.android.bundle' || { echo "ERROR: no embedded JS bundle"; exit 1; }
+          if unzip -l "$APK" | grep -E 'lib/(armeabi-v7a|x86|x86_64)/'; then
+            echo "ERROR: non-arm64 libs packaged"; exit 1
+          fi
+          unzip -l "$APK" | grep -c 'lib/arm64-v8a/'
+          BT=$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)
+          "$ANDROID_HOME/build-tools/$BT/zipalign" -c -p 4 "$APK" && echo "zipalign OK"
+      - name: Sign with a TEST-ONLY debug key
+        run: |
+          # Public-convention debug credentials ('android'/'android') - this key
+          # marks the build as a local test build. It is NOT release signing and
+          # must never be used for store uploads. No secrets are involved.
+          keytool -genkeypair -v -keystore test-only.keystore \
+            -alias testonly -storepass android -keypass android \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=TEST ONLY debug build, O=Unconfigured staging test, C=IN"
+          BT=$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)
+          APK=$(ls mobile/android/app/build/outputs/apk/release/*.apk | head -1)
+          "$ANDROID_HOME/build-tools/$BT/apksigner" sign \
+            --ks test-only.keystore --ks-pass pass:android --key-pass pass:android \
+            --out mobile/android/app/build/outputs/apk/release/app-release-test.apk \
+            "$APK"
+          "$ANDROID_HOME/build-tools/$BT/apksigner" verify --print-certs \
+            mobile/android/app/build/outputs/apk/release/app-release-test.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-release-test-apk
+          path: mobile/android/app/build/outputs/apk/release/app-release-test.apk

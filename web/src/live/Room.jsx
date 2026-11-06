@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { api, fmt } from '../api.js';
+import { api, fmt, assetUrl } from '../api.js';
 import { useApp } from '../store.jsx';
 import { Avatar, Icon, LevelBadge, Sheet, Spinner, GemIcon, VerifiedBadge } from '../components/ui.jsx';
 import { useT } from '../i18n.js';
@@ -10,6 +10,10 @@ import GiftPanel from './GiftPanel.jsx';
 import { PkBar, PkInviteModal, PkInviteSheet, PkOpponent, PkResult } from './Pk.jsx';
 
 const REPORT_REASONS = ['Nudity or sexual content', 'Violence or threats', 'Hate speech or abuse', 'Underage user', 'Scam or spam', 'Other'];
+
+// Server seats use `seat` for the number; server gifts use `price`.
+const normSeat = (st) => ({ ...st, no: st.no ?? st.seat });
+const giftTier = (price) => (price < 100 ? 'small' : price < 1000 ? 'medium' : price < 10000 ? 'large' : 'super');
 
 export default function Room() {
   const { id } = useParams();
@@ -51,8 +55,17 @@ export default function Room() {
     api(`/live/${id}/join`, { method: 'POST' }).then((d) => {
       if (!alive) return;
       setInfo(d);
-      setFollowing(d.following);
+      setFollowing(d.state?.following ?? d.following);
       setDiamonds(d.room.diamonds);
+      // initial room state comes from the REST join (server ack carries no state)
+      const st = d.state || {};
+      setViewers(st.viewers || 0);
+      setTop(st.top || []);
+      setSeats((st.seats || []).map(normSeat));
+      if (st.pk && st.pk.status === 'active') {
+        setPk(st.pk);
+        if (st.pk.host_a) setPkPeople({ a: st.pk.host_a, b: st.pk.host_b });
+      }
     }).catch((e) => alive && setError(e.message));
     return () => { alive = false; };
   }, [id]);
@@ -75,39 +88,39 @@ export default function Room() {
   // 2. realtime room events
   useEffect(() => {
     if (!socket || !info) return undefined;
-    const join = () => socket.emit('room:join', { roomId: id }, (r) => {
-      if (r?.error) { setEnded(r.error); return; }
-      const s = r.state;
-      setChat(s.chat); setViewers(s.viewers); setViewerList(s.viewerList); setTop(s.top); setSeats(s.seats);
-      if (s.pk && s.pk.status === 'active') setPk(s.pk);
+    const join = () => socket.emit('room:join', { roomId: Number(id) }, (r) => {
+      if (r && r.ok === false) setEnded(r.error || 'Unable to join this live');
     });
     join();
     socket.on('connect', join);
     const on = {
-      chat: (m) => setChat((c) => [...c.slice(-79), m]),
-      'chat:remove': ({ id: mid }) => setChat((c) => c.filter((x) => x.id !== mid)),
-      system: (m) => setChat((c) => [...c.slice(-79), { id: Math.random(), system: true, text: m.text, level: m.level }]),
-      user_joined: ({ user, viewers: n }) => {
+      'room:chat': (m) => setChat((c) => [...c.slice(-79), m]),
+      'room:system': (m) => setChat((c) => [...c.slice(-79), { id: Math.random(), system: true, text: m.text, level: m.level }]),
+      'room:enter': ({ user, viewers: n }) => {
         setViewers(n);
         setViewerList((l) => [user, ...l.filter((u) => u.id !== user.id)].slice(0, 50));
         entryRef.current?.push(user);
       },
-      user_left: ({ userId, viewers: n }) => { setViewers(n); setViewerList((l) => l.filter((u) => u.id !== userId)); },
-      gift: (g) => {
-        giftRef.current?.push(g);
-        if (g.receiver.id === info.room.host.id) setDiamonds((d) => d + g.gift.coins * g.qty);
-        setChat((c) => [...c.slice(-79), { id: g.id, gift: true, user: g.sender, text: `sent ${g.gift.name} x${g.qty}`, icon: g.gift.icon }]);
+      'room:viewers': ({ viewers: n, left }) => { setViewers(n); if (left) setViewerList((l) => l.filter((u) => u.id !== left)); },
+      'room:gift': (p) => {
+        const ev = {
+          id: p.id, qty: p.qty, coins: p.coins,
+          sender: p.from, receiver: p.to,
+          gift: { ...p.gift, coins: p.gift.price, animUrl: assetUrl(p.gift.anim_url), animType: p.gift.anim_type, tier: giftTier(Number(p.gift.price) || 0) },
+        };
+        giftRef.current?.push(ev);
+        setChat((c) => [...c.slice(-79), { id: p.id, gift: true, user: p.from, text: `sent ${p.gift.name} x${p.qty}`, icon: p.gift.icon }]);
       },
-      likes: ({ added }) => likeRef.current?.burst(Math.ceil(added / 3)),
-      top: (t) => setTop(t),
-      seats: (s) => setSeats(s),
-      'pk:start': (p) => { setPk(p); setPkPeople({ a: p.a.host, b: p.b.host }); setPkResult(null); },
-      'pk:update': (p) => setPk((cur) => (cur ? { ...cur, ...p } : p)),
+      'room:likes': () => likeRef.current?.burst(1),
+      'seat:update': (pl) => setSeats((pl.seats || []).map(normSeat)),
+      'pk:start': (p) => { setPk(p); setPkPeople({ a: p.host_a, b: p.host_b }); setPkResult(null); },
+      'pk:score': (p) => setPk((cur) => (cur ? { ...cur, ...p } : p)),
       'pk:end': (p) => { setPk(null); setPkResult(p); },
       'pk:invite': (inv) => setPkInvite(inv),
-      'pk:rejected': () => toast('PK invite declined'),
-      'room:closed': ({ reason }) => { if (!isHost) setEnded(reason === 'banned' ? 'This live was stopped by moderators' : 'This live has ended'); },
-      kicked: ({ roomId }) => { if (roomId === id) { toast('You were removed from this room', 'error'); nav('/'); } },
+      'pk:declined': () => toast('PK invite declined'),
+      'room:ended': () => { if (!isHost) setEnded('This live has ended'); },
+      'room:cut': () => { if (!isHost) setEnded('This live was stopped by moderators'); },
+      'room:kicked': ({ room_id: rid }) => { if (Number(rid) === Number(id)) { toast('You were removed from this room', 'error'); nav('/'); } },
     };
     for (const [k, fn] of Object.entries(on)) socket.on(k, fn);
     return () => {
@@ -120,7 +133,7 @@ export default function Room() {
   // 3. host heartbeat keeps the room alive
   useEffect(() => {
     if (!isHost) return undefined;
-    const beat = () => api(`/live/${id}/heartbeat`, { method: 'POST' }).then((r) => r.ended && setEnded('This live has ended')).catch(() => { });
+    const beat = () => socket?.emit('host:heartbeat', { roomId: Number(id) });
     beat();
     const t = setInterval(beat, 30000);
     return () => clearInterval(t);
@@ -129,6 +142,7 @@ export default function Room() {
   // PK names when we joined mid-battle
   useEffect(() => {
     if (!pk || pkPeople) return;
+    if (typeof pk.host_a === 'object' && pk.host_a) { setPkPeople({ a: pk.host_a, b: pk.host_b }); return; }
     Promise.all([api(`/users/${pk.host_a}`), api(`/users/${pk.host_b}`)]).then(([a, b]) => setPkPeople({ a: a.user, b: b.user })).catch(() => { });
   }, [pk, pkPeople]);
 
@@ -161,8 +175,8 @@ export default function Room() {
       c.toBlob((b) => {
         if (!b) return;
         const f = new FormData();
-        f.append('frame', new File([b], 'frame.jpg', { type: 'image/jpeg' }));
-        api(`/live/${id}/snapshot`, { method: 'POST', form: f }).catch(() => { });
+        f.append('file', new File([b], 'frame.jpg', { type: 'image/jpeg' }));
+        api(`/live/${id}/thumbnail`, { method: 'POST', form: f }).catch(() => { });
       }, 'image/jpeg', 0.7);
     };
     const first = setTimeout(grab, 8000);
@@ -177,11 +191,11 @@ export default function Room() {
   const sendChat = (e) => {
     e?.preventDefault();
     if (!text.trim()) return;
-    socket?.emit('chat:send', { roomId: id, text }, (r) => r?.error && toast(r.error, 'error'));
+    socket?.emit('room:chat', { roomId: Number(id), text }, (r) => r && r.ok === false && r.error && toast(r.error, 'error'));
     setText('');
     setSheet(null);
   };
-  const like = () => { socket?.emit('like', { roomId: id, n: 1 }); likeRef.current?.burst(1); };
+  const like = () => { socket?.emit('room:like', { roomId: Number(id), n: 1 }); likeRef.current?.burst(1); };
   const follow = async () => {
     try { await api(`/users/${info.room.host.id}/follow`, { method: following ? 'DELETE' : 'POST' }); setFollowing(!following); }
     catch (e) { toast(e.message, 'error'); }
@@ -192,7 +206,7 @@ export default function Room() {
     catch (e) { toast(e.message, 'error'); }
   };
   const report = async (reason) => {
-    try { await api('/report', { method: 'POST', body: { targetType: 'room', targetId: id, reason } }); toast(t('thanksReport')); }
+    try { await api('/reports', { method: 'POST', body: { target_type: 'room', target_id: id, reason } }); toast(t('thanksReport')); }
     catch (e) { toast(e.message, 'error'); }
     setSheet(null);
   };
@@ -200,10 +214,23 @@ export default function Room() {
     const url = window.location.href;
     try { if (navigator.share) await navigator.share({ title: info.room.title, url }); else { await navigator.clipboard.writeText(url); toast('Link copied'); } } catch { /* cancelled */ }
   };
-  const takeSeat = (no) => socket?.emit('seat:take', { roomId: id, no }, (r) => r?.error && toast(r.error, 'error'));
-  const leaveSeat = () => socket?.emit('seat:leave', { roomId: id });
-  const seatAdmin = (no, action) => socket?.emit('seat:admin', { roomId: id, no, action });
-  const hostAct = (action, userId) => { socket?.emit(`host:${action}`, { roomId: id, userId }); setSheet(null); toast(action === 'kick' ? 'User removed' : 'Done'); };
+  const takeSeat = (no) => api(`/live/${id}/seats/take`, { method: 'POST', body: { seat: no } }).catch((e) => toast(e.message, 'error'));
+  const leaveSeat = () => api(`/live/${id}/seats/leave`, { method: 'POST' }).catch(() => { });
+  const seatAdmin = (no, action, userId) => {
+    const url = action === 'kick' ? 'remove' : action === 'lock' ? 'lock' : 'mute';
+    const body = { seat: no };
+    if (url === 'lock') body.locked = true;
+    if (url === 'mute') body.muted = true;
+    if (url === 'remove') body.user_id = userId;
+    api(`/live/${id}/seats/${url}`, { method: 'POST', body }).catch((e) => toast(e.message, 'error'));
+  };
+  const hostAct = (action, userId) => {
+    const path = action === 'kick' ? 'kick' : 'mute';
+    api(`/live/${id}/${path}`, { method: 'POST', body: { user_id: userId } })
+      .then(() => toast(action === 'kick' ? 'User removed' : 'Done'))
+      .catch((e) => toast(e.message, 'error'));
+    setSheet(null);
+  };
 
   const host = info?.hostCard;
   const opponent = useMemo(() => {
@@ -232,7 +259,7 @@ export default function Room() {
     <div className={`room ${type}`}>
       {/* ---------- stage ---------- */}
       {type === 'video' && <div className={`stage ${pk ? 'pk' : ''}`}>{mainVideo}</div>}
-      {type === 'video' && pk && <PkOpponent pk={pk} roomId={id} opponent={opponent} />}
+      {type === 'video' && pk && <PkOpponent pk={pk} roomId={id} opponent={opponent} livekitUrl={info?.livekit_url} />}
       {type === 'audio' && (
         <div className="audio-stage" style={{ backgroundImage: `url(${info.room.cover || host?.avatar || ''})` }}>
           <div className="audio-host"><Avatar user={host} size={92} /><b>{host?.name}</b><small>Host</small></div>
@@ -357,7 +384,7 @@ export default function Room() {
               <button className="btn danger" onClick={() => hostAct('kick', sheet.user.id)}>Remove</button>
             </>}
             {isHost && sheet.seat && <button className="btn ghost" onClick={() => { seatAdmin(sheet.seat, 'mute'); setSheet(null); }}>Mute seat</button>}
-            {isHost && sheet.seat && <button className="btn ghost" onClick={() => { seatAdmin(sheet.seat, 'kick'); setSheet(null); }}>Down from seat</button>}
+            {isHost && sheet.seat && <button className="btn ghost" onClick={() => { seatAdmin(sheet.seat, 'kick', sheet.user?.id); setSheet(null); }}>Down from seat</button>}
           </div>
         </Sheet>
       )}

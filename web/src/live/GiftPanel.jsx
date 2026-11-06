@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, assetUrl, fmt, uidKey } from '../api.js';
+import { api, assetUrl, fmt } from '../api.js';
 import { useApp } from '../store.jsx';
 import { preload } from '../components/AnimPlayer.jsx';
 import { Avatar, CoinIcon, Sheet } from '../components/ui.jsx';
@@ -16,7 +16,21 @@ export function useGifts() {
   useEffect(() => {
     if (giftCache) return;
     api('/gifts').then((g) => {
-      giftCache = g.map((x) => ({ ...x, icon: assetUrl(x.icon), animUrl: assetUrl(x.anim_url), animType: x.anim_type }));
+      // live-app server: price (not coins), categories normal/luxury/vip/event/lucky.
+      // Map to the panel's IndiFun-style contract: coins + popular/festival tabs.
+      const catAlias = { normal: 'popular', event: 'festival' };
+      giftCache = g.map((x) => {
+        const price = Number(x.price ?? x.coins ?? 0);
+        return {
+          ...x,
+          icon: assetUrl(x.icon),
+          animUrl: assetUrl(x.anim_url),
+          animType: x.anim_type,
+          coins: price,
+          category: catAlias[x.category] || x.category,
+          tier: x.tier || (price < 100 ? 'small' : price < 1000 ? 'medium' : price < 10000 ? 'large' : 'super'),
+        };
+      });
       setGifts(giftCache);
       // In low data mode only the small Lottie files are fetched ahead of time; videos load when sent.
       preload(giftCache.map((x) => x.anim_url).filter((u) => !lowData || /\.json$/.test(u)));
@@ -42,7 +56,10 @@ export default function GiftPanel({ open, onClose, roomId, host, seats = [] }) {
 
   const receivers = useMemo(() => [host, ...seats.filter((s) => s.user && s.user.id !== host?.id).map((s) => s.user)].filter(Boolean), [host, seats]);
   const list = cat === 'local' ? gifts.filter((g) => g.local) : gifts.filter((g) => g.category === cat);
-  const cats = CATS.filter(([k]) => k !== 'local' || gifts.some((g) => g.local));
+  const cats = CATS.filter(([k]) => (k === 'local' ? gifts.some((g) => g.local) : gifts.some((g) => g.category === k)));
+  useEffect(() => {
+    if (gifts.length && !cats.some(([k]) => k === cat) && cats.length) setCat(cats[0][0]);
+  }, [gifts, cats, cat]);
   useEffect(() => { if (!sel && gifts.length) setSel(gifts[0]); }, [gifts, sel]);
   useEffect(() => () => clearTimeout(comboTimer.current), []);
 
@@ -55,8 +72,8 @@ export default function GiftPanel({ open, onClose, roomId, host, seats = [] }) {
     setBusy(true);
     try {
       const nextCombo = isCombo ? combo + 1 : 1;
-      const r = await api('/gift/send', { method: 'POST', body: { roomId, giftId: sel.id, qty, idemKey: uidKey(), receiverId: (to || host)?.id, combo: nextCombo, confirmed } });
-      setWallet(r.wallet);
+      const r = await api('/gifts/send', { method: 'POST', body: { room_id: Number(roomId), gift_id: sel.id, qty, receiver_id: (to || host)?.id } });
+      setWallet((w) => ({ ...(w || {}), coins: r.balance }));
       setCombo(nextCombo);
       clearTimeout(comboTimer.current);
       comboTimer.current = setTimeout(() => setCombo(0), 3000);

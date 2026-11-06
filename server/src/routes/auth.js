@@ -77,7 +77,11 @@ r.post('/otp/send', async (req, res) => {
   const rawPhone = str(req.body.phone, 20).replace(/[^\d+]/g, '');
   const phone = rawPhone.replace(/^\+?91/, '').replace(/\D/g, '') || rawPhone;
   need(phone.length >= 8, 'Enter a valid phone number');
-  const isDemo = phone.startsWith('999999') || phone.includes('999999') || ['9999990001', '9999990002', '9999990003', '9999990004'].includes(phone);
+  // Demo-phone OTP shortcut: staging/demo convenience only, requires BOTH a
+  // non-production NODE_ENV and the explicit ALLOW_DEMO_LOGIN=true opt-in.
+  // Production always fails closed - every phone needs its real OTP.
+  const demoPhonesEnabled = config.nodeEnv !== 'production' && process.env.ALLOW_DEMO_LOGIN === 'true';
+  const isDemo = demoPhonesEnabled && (phone.startsWith('999999') || phone.includes('999999') || ['9999990001', '9999990002', '9999990003', '9999990004'].includes(phone));
   const code = isDemo ? '123456' : randomDigits(6);
   await q(
     `INSERT INTO otp_codes(phone, code, expires_at, attempts) VALUES ($1,$2, now() + interval '30 minutes', 0)
@@ -106,7 +110,11 @@ r.post('/otp/verify', async (req, res) => {
   const rawPhone = str(req.body.phone, 20).replace(/[^\d+]/g, '');
   const phone = rawPhone.replace(/^\+?91/, '').replace(/\D/g, '') || rawPhone;
   const inputCode = String(req.body.code || '').trim();
-  const isDemo = phone.startsWith('999999') || phone.includes('999999') || ['9999990001', '9999990002', '9999990003', '9999990004'].includes(phone);
+  // Demo-phone OTP shortcut: staging/demo convenience only, requires BOTH a
+  // non-production NODE_ENV and the explicit ALLOW_DEMO_LOGIN=true opt-in.
+  // Production always fails closed - every phone needs its real OTP.
+  const demoPhonesEnabled = config.nodeEnv !== 'production' && process.env.ALLOW_DEMO_LOGIN === 'true';
+  const isDemo = demoPhonesEnabled && (phone.startsWith('999999') || phone.includes('999999') || ['9999990001', '9999990002', '9999990003', '9999990004'].includes(phone));
 
   const row = await one(
     `UPDATE otp_codes SET attempts = attempts + 1 
@@ -144,6 +152,7 @@ r.post('/guest', async (req, res) => {
 
 // Instant 1-Click Demo Login for Executive Testing
 r.post('/demo-login', async (req, res) => {
+  if (config.nodeEnv === 'production' || process.env.ALLOW_DEMO_LOGIN !== 'true') throw bad('not_found', 'Unknown API route');
   const role = req.body.role || 'aria';
   let phone = '9999990002';
   let defaultName = 'Aria Star Host';
@@ -180,7 +189,7 @@ r.post('/admin/login', async (req, res) => {
 
   const a = await one('SELECT * FROM admin_users WHERE email=$1', [email]);
   if (a && a.password_hash) {
-    const isPassOk = (password === 'nAZQmzuLxFnqqNJb1ii1p98' || password === 'admin123' || await bcrypt.compare(password, a.password_hash));
+    const isPassOk = await bcrypt.compare(password, a.password_hash);
     if (isPassOk) {
       need(a.status === 'active', 'Account disabled');
       await q('UPDATE admin_users SET last_login=now() WHERE id=$1', [a.id]);
@@ -194,7 +203,7 @@ r.post('/admin/login', async (req, res) => {
 
   const agency = await one('SELECT * FROM agencies WHERE login_email=$1', [email]);
   if (agency && agency.password_hash) {
-    const isPassOk = (password === 'uSZYPmvMAf4tlIPY872kMv' || password === 'agency123' || await bcrypt.compare(password, agency.password_hash));
+    const isPassOk = await bcrypt.compare(password, agency.password_hash);
     if (isPassOk) {
       need(agency.status === 'active', `Agency is ${agency.status}`);
       return res.json({

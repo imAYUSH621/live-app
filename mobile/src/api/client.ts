@@ -1,8 +1,19 @@
 import { getSecureToken, removeSecureToken } from '../utils/secureStorage';
 import { router } from 'expo-router';
 
+// The backend URL is configured per build via EXPO_PUBLIC_API_URL.
+// Deliberately no silent fallback to a developer-machine LAN address or any
+// production endpoint: when the variable is unset the app points at an
+// intentionally invalid placeholder so a misconfigured build fails loudly
+// instead of silently talking to the wrong backend.
+const CONFIGURED_API_URL = process.env.EXPO_PUBLIC_API_URL;
+if (!CONFIGURED_API_URL) {
+  console.warn(
+    '[api] EXPO_PUBLIC_API_URL is not configured; network calls will fail until a backend URL is set.'
+  );
+}
 export const API_BASE_URL = (
-  process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.38:4000'
+  CONFIGURED_API_URL || 'https://api-url-not-configured.invalid'
 ).replace(/\/+$/, '');
 
 export class ApiError extends Error {

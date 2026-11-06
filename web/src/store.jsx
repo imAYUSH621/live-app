@@ -34,9 +34,9 @@ export function AppProvider({ children }) {
     if (!getToken()) return;
     try {
       const d = await api('/me');
-      setMe(d);
-      setWallet(d.wallet);
-      if (!localStorage.getItem('liveapp_lang') && d.user.language) {
+      setMe({ ...d, user: d.user || d });
+      setWallet(d.wallet || { coins: d.coins ?? 0, diamonds: d.diamonds ?? 0 });
+      if (!localStorage.getItem('liveapp_lang') && (d.user?.language || d.language)) {
         setLang(['hi', 'en', 'ar'].includes(d.user.language) ? d.user.language : 'en');
       }
     } catch { /* handled by api */ }

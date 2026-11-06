@@ -1,14 +1,23 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, fmt } from '../api.js';
+import { useApp } from '../store.jsx';
 import { Avatar, BottomNav, Empty, Header, LevelBadge, Spinner } from '../components/ui.jsx';
 
+const TYPES = { hosts: 'charm', gifters: 'rich' };
+const PERIODS = { day: 'daily', week: 'weekly', month: 'monthly' };
+
 export default function Rank() {
+  const { me } = useApp();
   const [type, setType] = useState('hosts');
   const [period, setPeriod] = useState('day');
   const [scope, setScope] = useState('world');
   const [rows, setRows] = useState(null);
-  useEffect(() => { setRows(null); api(`/rank?type=${type}&period=${period}&scope=${scope}`).then(setRows).catch(() => setRows([])); }, [type, period, scope]);
+  useEffect(() => {
+    setRows(null);
+    const country = scope === 'country' && me?.user?.country ? `&country=${encodeURIComponent(me.user.country)}` : '';
+    api(`/rankings?type=${TYPES[type]}&period=${PERIODS[period]}${country}`).then(setRows).catch(() => setRows([]));
+  }, [type, period, scope, me?.user?.country]);
   const top3 = rows?.slice(0, 3) || [];
   return (
     <div className="page with-nav">
@@ -27,7 +36,7 @@ export default function Rank() {
             ))}
           </div>
           <div className="list">{rows.slice(3).map((r, i) => (
-            <Link key={r.user.id} to={`/user/${r.user.id}`} className="list-row"><span className="rank-no">{i + 4}</span><Avatar user={r.user} size={40} /><div className="grow"><b>{r.user.name}</b><LevelBadge level={type === 'hosts' ? r.user.hostLevel : r.user.level} vip={r.user.vip} /></div><span className="coins">{fmt(r.score)}</span></Link>
+            <Link key={r.user.id} to={`/user/${r.user.id}`} className="list-row"><span className="rank-no">{i + 4}</span><Avatar user={r.user} size={40} /><div className="grow"><b>{r.user.name}</b><LevelBadge level={type === 'hosts' ? r.user.charm_level : r.user.level} vip={r.user.vip} /></div><span className="coins">{fmt(r.score)}</span></Link>
           ))}</div>
         </>
       )}

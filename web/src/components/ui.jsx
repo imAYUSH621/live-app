@@ -73,7 +73,7 @@ export function GemIcon({ size = 16 }) {
 export function Avatar({ user, size = 44, frame = true, onClick }) {
   const src = assetUrl(user?.avatar);
   const initials = (user?.name || '?').slice(0, 1).toUpperCase();
-  const hue = [...(user?.id || 'x')].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
+  const hue = [...String(user?.id ?? 'x')].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
   const f = frame && user?.frame;
   return (
     <div className="avatar" style={{ width: size, height: size }} onClick={onClick}>

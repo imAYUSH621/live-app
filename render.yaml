@@ -28,9 +28,9 @@ services:
       - key: LIVEKIT_API_URL
         value: https://liveapp-xlp0dmau.livekit.cloud
       - key: LIVEKIT_API_KEY
-        value: APIgwq8qttLHjcn
+        sync: false  # set in the Render dashboard; never commit the value
       - key: LIVEKIT_API_SECRET
-        value: 0ZiP690jLfcJASAeZloUL9Tq4UNg4NhFIHAKAYDofSrA
+        sync: false  # set in the Render dashboard; never commit the value
       - key: ADMIN_EMAIL
         value: admin@example.com
       - key: ADMIN_PASSWORD

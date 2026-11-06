@@ -1,3 +1,4 @@
+import { config } from '../config.js';
 import { q, one } from '../db.js';
 import { redis } from '../redis.js';
 
@@ -56,7 +57,7 @@ export const DEFAULT_SETTINGS = {
   },
   pk: { duration: 300, punishment: 60, min_level: 0 },
   room: {
-    host_only_live: false,     // true = only approved hosts can go live
+    host_only_live: true,      // only approved hosts can go live (admin can relax in settings)
     multi_seats: [3, 6, 9], party_seats: 8, max_title: 60,
     thumbnail_interval_sec: 60, idle_end_minutes: 10,
     chat_slow_ms: 800, like_batch_ms: 1500,
@@ -88,6 +89,12 @@ export async function getSettings() {
   const rows = await q('SELECT key, value FROM settings');
   const merged = structuredClone(DEFAULT_SETTINGS);
   for (const r of rows) merged[r.key] = { ...(merged[r.key] || {}), ...r.value };
+  // Host approval is unconditional in production: no flag or saved row can
+  // reopen go-live to unverified users there. Outside production, open go-live
+  // is an explicit local-test opt-in (ALLOW_OPEN_LIVE=true); a saved settings
+  // row alone never disables the gate.
+  const allowOpenLive = config.nodeEnv !== 'production' && process.env.ALLOW_OPEN_LIVE === 'true';
+  if (!allowOpenLive) merged.room.host_only_live = true;
   await redis.set(CACHE_KEY, JSON.stringify(merged), 'EX', 30);
   return merged;
 }

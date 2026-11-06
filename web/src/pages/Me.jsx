@@ -23,10 +23,10 @@ export default function Me() {
   ];
   const copyId = () => {
     try {
-      navigator.clipboard?.writeText(u.publicId);
-      toast(`Copied ID ${u.publicId}`);
+      navigator.clipboard?.writeText(String(u.publicId || u.uid_display || u.uid));
+      toast(`Copied ID ${u.publicId || u.uid_display || u.uid}`);
     } catch {
-      toast(`ID: ${u.publicId}`);
+      toast(`ID: ${u.publicId || u.uid_display || u.uid}`);
     }
   };
 
@@ -37,7 +37,7 @@ export default function Me() {
         <div className="grow">
           <h2>{u.name} <VerifiedBadge user={u} size={18} /></h2>
           <p className="muted" onClick={copyId} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            ID: {u.publicId} <span style={{ fontSize: 11, background: 'var(--bg3)', padding: '1px 6px', borderRadius: 4, color: 'var(--text-secondary)' }}>Copy</span>
+            ID: {u.publicId || u.uid_display || u.uid} <span style={{ fontSize: 11, background: 'var(--bg3)', padding: '1px 6px', borderRadius: 4, color: 'var(--text-secondary)' }}>Copy</span>
           </p>
           <div><LevelBadge level={u.level} vip={u.vip} /></div>
         </div>
