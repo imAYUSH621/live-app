@@ -14,7 +14,7 @@ const r = Router();
 const auth = userAuth();
 
 // Become a host: selfie (taken live in-app), ID document, agency code.
-r.post('/host/apply', auth, uploader(['image'], { sensitive: true }).fields([{ name: 'selfie', maxCount: 1 }, { name: 'id_doc', maxCount: 1 }]), async (req, res) => {
+r.post('/host/apply', auth, uploader(['image'], { sensitive: 'kyc' }).fields([{ name: 'selfie', maxCount: 1 }, { name: 'id_doc', maxCount: 1 }]), async (req, res) => {
   const s = await getSettings();
   const existing = await one('SELECT status, selfie_url, id_doc_url FROM hosts WHERE user_id=$1', [req.user.id]);
   need(!existing || existing.status === 'rejected', existing?.status === 'approved' ? 'You are already a host' : 'Your application is under review');
@@ -42,8 +42,8 @@ r.post('/host/apply', auth, uploader(['image'], { sensitive: true }).fields([{ n
      VALUES ($1,$2,'pending',$3,$4,$5,$6,$7,$8, now(), NULL)
      ON CONFLICT (user_id) DO UPDATE SET agency_id=$2, status='pending', real_name=$3, selfie_url=$4, id_doc_url=$5, liveness_ok=$6,
        payout_method=$7, payout_details=$8, applied_at=now(), reject_reason=NULL`,
-    [req.user.id, agency?.id || null, realName, await storeUpload(selfie, { sensitive: true }),
-     req.files?.id_doc?.[0] ? await storeUpload(req.files.id_doc[0], { sensitive: true }) : null,
+    [req.user.id, agency?.id || null, realName, await storeUpload(selfie, { sensitive: 'kyc' }),
+     req.files?.id_doc?.[0] ? await storeUpload(req.files.id_doc[0], { sensitive: 'kyc' }) : null,
      req.body.liveness === 'true' || req.body.liveness === true, str(req.body.payout_method, 20) || null,
      JSON.parse(req.body.payout_details || '{}')]);
   // A re-application replaces the previous KYC files; remove the old uploads.

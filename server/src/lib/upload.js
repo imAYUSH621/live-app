@@ -16,15 +16,17 @@ const KINDS = {
 const MIME_FAMILY = { image: 'image/', video: 'video/', audio: 'audio/' };
 
 export const uploadRoot = path.resolve(config.uploadDir);
-// Sensitive uploads (KYC selfie/ID, report screenshots) land here and are
-// served only to panel admins, never via the public /uploads static mount.
+// Sensitive uploads (KYC selfie/ID, report screenshots) land here, split by
+// access class, and are served only to panel admins whose role covers that
+// class - never via the public /uploads static mount.
 export const privateRoot = path.join(uploadRoot, 'private');
-fs.mkdirSync(privateRoot, { recursive: true });
+export const PRIVATE_CLASSES = ['kyc', 'reports'];
+for (const c of PRIVATE_CLASSES) fs.mkdirSync(path.join(privateRoot, c), { recursive: true });
 
 function storageFor(sensitive) {
   return multer.diskStorage({
     destination: (_req, _file, cb) => {
-      const base = sensitive ? privateRoot : uploadRoot;
+      const base = sensitive ? path.join(privateRoot, sensitive) : uploadRoot;
       const dir = path.join(base, new Date().toISOString().slice(0, 7));
       fs.mkdirSync(dir, { recursive: true });
       cb(null, dir);
@@ -36,7 +38,7 @@ function storageFor(sensitive) {
   });
 }
 
-export function uploader(kinds = ['image'], { sensitive = false } = {}) {
+export function uploader(kinds = ['image'], { sensitive = null } = {}) {
   const allowed = new Set(kinds.flatMap((k) => KINDS[k] || []));
   const families = kinds.map((k) => MIME_FAMILY[k]).filter(Boolean);
   return multer({
@@ -66,6 +68,32 @@ export function fileUrl(file) {
 function fileUrlPrivate(file) {
   const rel = path.relative(privateRoot, file.path).split(path.sep).join('/');
   return `/uploads-private/${rel}`;
+}
+
+// Byte-level content check for image uploads: the client-supplied MIME header
+// and filename are not proof of content, so image files must carry the magic
+// bytes of their declared format.
+const IMAGE_MAGIC = {
+  '.png': [0x89, 0x50, 0x4e, 0x47],
+  '.jpg': [0xff, 0xd8, 0xff],
+  '.jpeg': [0xff, 0xd8, 0xff],
+  '.gif': [0x47, 0x49, 0x46, 0x38],
+};
+function imageBytesOk(absPath, ext) {
+  try {
+    const fd = fs.openSync(absPath, 'r');
+    const head = Buffer.alloc(12);
+    fs.readSync(fd, head, 0, 12, 0);
+    fs.closeSync(fd);
+    if (ext === '.webp') {
+      return head.subarray(0, 4).toString('ascii') === 'RIFF' && head.subarray(8, 12).toString('ascii') === 'WEBP';
+    }
+    const magic = IMAGE_MAGIC[ext];
+    if (!magic) return true; // not an image extension; no check here
+    return magic.every((b, i) => head[i] === b);
+  } catch {
+    return false;
+  }
 }
 
 // ---- Cloudinary backend (optional) -------------------------------------
@@ -117,8 +145,13 @@ function cloudinaryPublicId(url) {
  * upload fails, the file stays on local disk (ephemeral on some hosts) so
  * availability never depends on the remote service.
  */
-export async function storeUpload(file, { sensitive = false, keepLocal = false } = {}) {
+export async function storeUpload(file, { sensitive = null, keepLocal = false } = {}) {
   if (!file) return null;
+  const ext = path.extname(file.originalname || '').toLowerCase();
+  if ((ext in IMAGE_MAGIC || ext === '.webp') && !imageBytesOk(file.path, ext)) {
+    fs.unlink(file.path, () => {});
+    throw bad('File content does not match its image type');
+  }
   if (sensitive) return fileUrlPrivate(file);
   if (keepLocal) return fileUrl(file);
   if (cloudinaryEnabled()) {
@@ -152,16 +185,22 @@ export async function removeUpload(url) {
   }
 }
 
-/** Panel-admin gate for the private upload mount (KYC docs, report shots). */
-export async function privateUploadAuth(req, _res, next) {
-  const h = req.headers.authorization || '';
-  const token = h.startsWith('Bearer ') ? h.slice(7) : req.query.token || null;
-  const p = verifyToken(token);
-  if (!p || p.k !== 'admin') throw new HttpError(401, 'Admin login required', 'unauthorized');
-  const a = await one('SELECT id, role, status FROM admin_users WHERE id=$1', [p.id]);
-  if (!a || a.status !== 'active') throw new HttpError(401, 'Admin login required', 'unauthorized');
-  if (!canAccess(a.role, 'hosts') && !canAccess(a.role, 'reports')) {
-    throw new HttpError(403, 'Your role cannot access private uploads', 'forbidden');
-  }
-  next();
+/** Panel-admin gate for one private upload class. Header-only bearer auth:
+ *  query-string tokens are deliberately not accepted (URLs leak into logs,
+ *  history, referrers and shares). Class-to-module mapping keeps a
+ *  hosts-only admin out of report evidence and vice versa. */
+export function privateUploadAuth(privClass) {
+  const module = privClass === 'kyc' ? 'hosts' : 'reports';
+  return async (req, _res, next) => {
+    const h = req.headers.authorization || '';
+    const token = h.startsWith('Bearer ') ? h.slice(7) : null;
+    const p = verifyToken(token);
+    if (!p || p.k !== 'admin') throw new HttpError(401, 'Admin login required', 'unauthorized');
+    const a = await one('SELECT id, role, status FROM admin_users WHERE id=$1', [p.id]);
+    if (!a || a.status !== 'active') throw new HttpError(401, 'Admin login required', 'unauthorized');
+    if (!canAccess(a.role, module)) {
+      throw new HttpError(403, 'Your role cannot access these files', 'forbidden');
+    }
+    next();
+  };
 }
