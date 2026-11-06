@@ -1,6 +1,7 @@
 import express from 'express';
 import http from 'node:http';
 import path from 'node:path';
+import fs from 'node:fs';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -82,7 +83,20 @@ app.use('/uploads', (req, res, next) => (req.path === '/private' || req.path.sta
 app.use('/fx', express.static(FX_DIR, { maxAge: '365d', immutable: true }));
 app.use('/static', express.static(path.resolve('public'), { maxAge: '30d' }));
 
+// Built frontends served same-origin when present (the Render blueprint builds
+// them): the user web app (web/dist) at / and the admin panel (admin/dist) at
+// /panel. Both clients default to this same service's /api, so no extra config.
+const webDist = process.env.WEB_DIST || path.resolve('../web/dist');
+const adminDist = process.env.ADMIN_DIST || path.resolve('../admin/dist');
+const webIndex = path.join(webDist, 'index.html');
+const adminIndex = path.join(adminDist, 'index.html');
+const hasWeb = fs.existsSync(webIndex);
+const hasAdmin = fs.existsSync(adminIndex);
+if (hasAdmin) app.use('/panel', express.static(adminDist, { maxAge: '1h', index: false }));
+if (hasWeb) app.use(express.static(webDist, { maxAge: '1h', index: false }));
+
 app.get('/', (_req, res) => {
+  if (hasWeb) return res.sendFile(webIndex);
   res.json({
     status: 'online',
     app: config.appName,
@@ -138,6 +152,14 @@ for (const r of [discoverRoutes, userRoutes, liveRoutes, callRoutes, walletRoute
   safetyRoutes, agencyRoutes, sellerRoutes, bondRoutes, kycRoutes, adminRoutes, adminContentRoutes, adminModRoutes, adminFinanceRoutes]) app.use('/api', r);
 
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found' }));
+
+// SPA fallbacks for client-side routes; API/upload/static mounts are already
+// registered above, so only unmatched non-API GETs land here.
+app.get('/panel/*splat', (_req, res, next) => (hasAdmin ? res.sendFile(adminIndex) : next()));
+app.get('/*splat', (req, res, next) => {
+  if (!hasWeb || req.method !== 'GET') return next();
+  res.sendFile(webIndex);
+});
 
 // errors -> JSON
 // eslint-disable-next-line no-unused-vars

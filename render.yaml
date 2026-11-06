@@ -5,7 +5,7 @@ services:
     runtime: node
     plan: free
     rootDir: server
-    buildCommand: npm install && npm run migrate && npm run seed
+    buildCommand: cd ../web && npm install && npm run build && cd ../admin && npm install && npm run build -- --base=/panel/ && cd ../server && npm install && npm run migrate && npm run seed
     startCommand: npm start
     healthCheckPath: /
     envVars:
