@@ -2703,3 +2703,11 @@ img { display: block; }
 .bag-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
 .bag-form input { padding: 10px; border-radius: 10px; border: 1px solid #2a2a33; background: #1c1c22; color: #f4f6fb; caret-color: #f4f6fb; }
 .bag-form input::placeholder { color: #8a92a6; }
+
+/* Keep composer and room actions separate on compact screens. */
+@media(max-width:860px) {
+ .room-bottom { display:block; padding:10px 70px calc(12px + var(--safe-b)) 10px; }
+ .room-actions { position:absolute;right:10px;bottom:calc(68px + var(--safe-b));display:flex;flex-direction:column;gap:8px; }
+ .chat-list { bottom:calc(78px + var(--safe-b)); }
+ .say-hi.composer { width:100%;min-height:44px; }
+}

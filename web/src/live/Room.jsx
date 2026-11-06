@@ -283,7 +283,7 @@ export default function Room() {
     setSheet(null);
   };
 
-  const host = info?.hostCard;
+  const host = info?.hostCard || info?.room?.host || info?.state?.host;
   const opponent = useMemo(() => {
     if (!pk || !pkPeople) return null;
     return pk.room_a === id ? pkPeople.b : pkPeople.a;
@@ -359,7 +359,7 @@ export default function Room() {
       <div className="room-sub">
         <button className="chip" onClick={() => setSheet('top')}><Icon name="crown" size={14} /> {t('topFans')}</button>
         {translateOn && <span className="chip"><Icon name="translate" size={14} /> {t('translated')}</span>}
-        <span className="chip muted">ID {host?.publicId}</span>
+        <span className="chip muted">ID {host?.publicId || host?.uid || host?.fancy_id}</span>
       </div>
       {pk && <PkBar pk={pk} roomId={id} />}
 
