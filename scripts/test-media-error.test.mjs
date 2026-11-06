@@ -77,6 +77,15 @@ check('hook maps errors via describeMediaError', hook.includes('describeMediaErr
 check('hook retry attempt is an effect dep', hook.includes('audioOnly, attempt]'));
 check('host media-error box renders regardless of audioOnly (not inside !audioOnly cover)', /\{av\.mediaError && isHost && \([\s\S]*?className="media-error"/.test(roomSrc) && !/!audioOnly && \([\s\S]{0,400}media-error/.test(roomSrc));
 
+// 7b. Visual placement: error box is a centered high-z overlay, not in the bottom flow behind chat
+const css = readFileSync(new URL('../web/src/styles.css', import.meta.url), 'utf8');
+const meRule = (css.match(/\.media-error \{[^}]*\}/) || [''])[0];
+check('media-error is absolutely centered overlay', /position:\s*absolute/.test(meRule) && /translate\(-50%,\s*-50%\)/.test(meRule));
+check('media-error sits above chat list (z6) and bottom bar (z8)', /z-index:\s*(2[0-9]|[3-9][0-9])/.test(meRule));
+// 7c. Avatar falls back to initials on image load failure (no broken-image icon)
+const ui = readFileSync(new URL('../web/src/components/ui.jsx', import.meta.url), 'utf8');
+check('Avatar has onError initials fallback', ui.includes('onError={() => setImgFailed(true)}') && ui.includes('imgFailed'));
+
 // 8. Mobile parity: native setup failure shows the same friendly mapping
 const mobile = readFileSync(new URL('../mobile/app/live/[id].tsx', import.meta.url), 'utf8');
 check('mobile uses describeMediaError in setup catch', mobile.includes('describeMediaError(err)'));

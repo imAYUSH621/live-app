@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import AnimPlayer from './AnimPlayer.jsx';
 import { useT } from '../i18n.js';
@@ -72,12 +72,13 @@ export function GemIcon({ size = 16 }) {
 // ---------- avatar with optional animated frame ----------
 export function Avatar({ user, size = 44, frame = true, onClick }) {
   const src = assetUrl(user?.avatar);
+  const [imgFailed, setImgFailed] = useState(false);
   const initials = (user?.name || '?').slice(0, 1).toUpperCase();
   const hue = [...String(user?.id ?? 'x')].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
   const f = frame && user?.frame;
   return (
     <div className="avatar" style={{ width: size, height: size }} onClick={onClick}>
-      {src ? <img src={src} alt="" /> : <div className="avatar-fallback" style={{ background: `linear-gradient(135deg,hsl(${hue} 80% 60%),hsl(${(hue + 50) % 360} 80% 45%))`, fontSize: size * 0.42 }}>{initials}</div>}
+      {src && !imgFailed ? <img src={src} alt="" onError={() => setImgFailed(true)} /> : <div className="avatar-fallback" style={{ background: `linear-gradient(135deg,hsl(${hue} 80% 60%),hsl(${(hue + 50) % 360} 80% 45%))`, fontSize: size * 0.42 }}>{initials}</div>}
       {f && <AnimPlayer src={assetUrl(f.url)} type={f.type} loop className="avatar-frame" />}
     </div>
   );

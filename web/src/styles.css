@@ -2598,7 +2598,7 @@ img { display: block; }
 .page .list-row > span { color: var(--text); }
 .page .list-row > span.status { font-weight: 600; text-transform: capitalize; }
 
-.media-error { display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center; background: rgba(185, 28, 28, 0.14); border: 1px solid rgba(248, 113, 113, 0.55); border-radius: 10px; padding: 10px 14px; max-width: 340px; }
+.media-error { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); z-index: 20; display: flex; flex-direction: column; gap: 8px; align-items: center; text-align: center; background: rgba(15, 6, 6, 0.92); border: 1px solid rgba(248, 113, 113, 0.65); border-radius: 12px; padding: 14px 16px; width: min(340px, calc(100% - 48px)); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55); }
 .media-error b { color: #fecaca; font-size: 14px; }
 .media-error span { color: #fca5a5; font-size: 12px; line-height: 1.45; }
 .media-error-actions { display: flex; gap: 8px; margin-top: 2px; }
