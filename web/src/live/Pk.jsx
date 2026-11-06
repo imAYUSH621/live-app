@@ -69,9 +69,9 @@ export function PkInviteSheet({ open, onClose, roomId }) {
   const { toast } = useApp();
   const [list, setList] = useState(null);
   const [waiting, setWaiting] = useState(false);
-  useEffect(() => { if (open) api('/pk/opponents').then(setList).catch(() => setList([])); }, [open]);
+  useEffect(() => { if (open) api('/pk/candidates').then(setList).catch(() => setList([])); }, [open]);
   const invite = async (target) => {
-    try { await api('/pk/invite', { method: 'POST', body: { roomId, targetRoomId: target.id } }); toast(`Invite sent to ${target.host.name}`); onClose(); }
+    try { await api('/pk/invite', { method: 'POST', body: { room_id: target.id } }); toast(`Invite sent to ${target.name}`); onClose(); }
     catch (e) { toast(e.message, 'error'); }
   };
   const random = async () => {
@@ -90,8 +90,8 @@ export function PkInviteSheet({ open, onClose, roomId }) {
       <div className="list">
         {!list ? <p className="muted">Loading…</p> : list.length === 0 ? <Empty text="No other hosts live right now" /> : list.map((r) => (
           <div key={r.id} className="list-row">
-            <Avatar user={r.host} size={40} />
-            <div className="grow"><b>{r.host.name}</b><small>{fmt(r.viewers)} watching</small></div>
+            <Avatar user={{ name: r.name, avatar_url: r.avatar_url }} size={40} />
+            <div className="grow"><b>{r.name}</b><small>{r.title || 'Live now'}</small></div>
             <button className="btn small" onClick={() => invite(r)}>Invite</button>
           </div>
         ))}
