@@ -5,6 +5,7 @@ import { useApp } from '../store.jsx';
 import { Avatar, Icon, LevelBadge, Sheet, Spinner, GemIcon, VerifiedBadge } from '../components/ui.jsx';
 import { useT } from '../i18n.js';
 import { useLiveKit } from './useLiveKit.js';
+import { roomHost } from './roomHost.js';
 import { canFallbackToAudio } from './mediaError.js';
 import { EntryLayer, GiftLayer, LikesLayer } from './Layers.jsx';
 import GiftPanel from './GiftPanel.jsx';
@@ -283,7 +284,7 @@ export default function Room() {
     setSheet(null);
   };
 
-  const host = info?.hostCard;
+  const host = roomHost(info);
   const opponent = useMemo(() => {
     if (!pk || !pkPeople) return null;
     return pk.room_a === id ? pkPeople.b : pkPeople.a;
