@@ -12,7 +12,7 @@ import { seed } from './seed.js';
 import { syncFxLibrary, FX_DIR } from './fxLibrary.js';
 import { initSocket } from './socket.js';
 import { startJobs } from './jobs.js';
-import { uploadRoot } from './lib/upload.js';
+import { uploadRoot, privateRoot, privateUploadAuth } from './lib/upload.js';
 import { getSettings } from './lib/settings.js';
 import { verifyToken } from './lib/auth.js';
 import { livekitHealthy } from './lib/livekit.js';
@@ -66,7 +66,10 @@ app.post('/api/livekit/webhook', express.raw({ type: '*/*', limit: '1mb' }), liv
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-app.use('/uploads', express.static(uploadRoot, { maxAge: '30d', immutable: true }));
+app.use('/uploads-private', privateUploadAuth, express.static(privateRoot, { maxAge: 0 }));
+// Never leak the admin-only private subtree through the public static mount.
+app.use('/uploads', (req, res, next) => (req.path === '/private' || req.path.startsWith('/private/')) ? res.status(404).end() : next(),
+  express.static(uploadRoot, { maxAge: '30d', immutable: true, fallthrough: false, index: false, dotfiles: 'deny' }));
 // premium animation library (SVGA gifts, entry effects, 3D icons) — loaded on demand, cached a year
 app.use('/fx', express.static(FX_DIR, { maxAge: '365d', immutable: true }));
 app.use('/static', express.static(path.resolve('public'), { maxAge: '30d' }));

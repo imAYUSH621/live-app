@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { one, q, tx } from '../db.js';
 import { userAuth } from '../lib/auth.js';
 import { need, str, monthOf, bad, int, notFound } from '../lib/util.js';
-import { uploader, fileUrl } from '../lib/upload.js';
+import { uploader, storeUpload, removeUpload } from '../lib/upload.js';
 import { getSettings } from '../lib/settings.js';
 import { hostMonth } from '../services/settlement.js';
 import { miniProfile } from '../services/profile.js';
@@ -14,9 +14,9 @@ const r = Router();
 const auth = userAuth();
 
 // Become a host: selfie (taken live in-app), ID document, agency code.
-r.post('/host/apply', auth, uploader(['image']).fields([{ name: 'selfie', maxCount: 1 }, { name: 'id_doc', maxCount: 1 }]), async (req, res) => {
+r.post('/host/apply', auth, uploader(['image'], { sensitive: true }).fields([{ name: 'selfie', maxCount: 1 }, { name: 'id_doc', maxCount: 1 }]), async (req, res) => {
   const s = await getSettings();
-  const existing = await one('SELECT status FROM hosts WHERE user_id=$1', [req.user.id]);
+  const existing = await one('SELECT status, selfie_url, id_doc_url FROM hosts WHERE user_id=$1', [req.user.id]);
   need(!existing || existing.status === 'rejected', existing?.status === 'approved' ? 'You are already a host' : 'Your application is under review');
   const selfie = req.files?.selfie?.[0];
   need(selfie, 'Take a selfie to verify your face');
@@ -42,9 +42,13 @@ r.post('/host/apply', auth, uploader(['image']).fields([{ name: 'selfie', maxCou
      VALUES ($1,$2,'pending',$3,$4,$5,$6,$7,$8, now(), NULL)
      ON CONFLICT (user_id) DO UPDATE SET agency_id=$2, status='pending', real_name=$3, selfie_url=$4, id_doc_url=$5, liveness_ok=$6,
        payout_method=$7, payout_details=$8, applied_at=now(), reject_reason=NULL`,
-    [req.user.id, agency?.id || null, realName, fileUrl(selfie), req.files?.id_doc?.[0] ? fileUrl(req.files.id_doc[0]) : null,
+    [req.user.id, agency?.id || null, realName, await storeUpload(selfie, { sensitive: true }),
+     req.files?.id_doc?.[0] ? await storeUpload(req.files.id_doc[0], { sensitive: true }) : null,
      req.body.liveness === 'true' || req.body.liveness === true, str(req.body.payout_method, 20) || null,
      JSON.parse(req.body.payout_details || '{}')]);
+  // A re-application replaces the previous KYC files; remove the old uploads.
+  if (existing?.selfie_url) await removeUpload(existing.selfie_url);
+  if (existing?.id_doc_url) await removeUpload(existing.id_doc_url);
   res.json(await meView(req.user.id));
 });
 

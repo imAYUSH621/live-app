@@ -4,7 +4,7 @@ import { one, q, tx } from '../db.js';
 import { redis } from '../redis.js';
 import { userAuth } from '../lib/auth.js';
 import { need, int, str, notFound, forbidden, bad } from '../lib/util.js';
-import { uploader, fileUrl, uploadRoot } from '../lib/upload.js';
+import { uploader, fileUrl, storeUpload, removeUpload, uploadRoot } from '../lib/upload.js';
 import { lkToken, kickFromRoom, muteTrack, AUDIO_ONLY } from '../lib/livekit.js';
 import { getSettings } from '../lib/settings.js';
 import { config } from '../config.js';
@@ -103,7 +103,7 @@ r.post('/live/start', auth, uploader(['image']).single('cover'), async (req, res
   let seats = int(b.seats, seatsAllowed[seatsAllowed.length - 1]);
   if (!seatsAllowed.includes(seats)) seats = seatsAllowed[seatsAllowed.length - 1];
   const title = (await filterText(str(b.title, s.room.max_title))).text || `${req.user.name}'s live`;
-  const coverUrl = req.file ? fileUrl(req.file) : (b.cover_url || req.user.avatar_url || '/assets/default-cover.jpg');
+  const coverUrl = req.file ? await storeUpload(req.file) : (b.cover_url || req.user.avatar_url || '/assets/default-cover.jpg');
   const room = await one(
     `INSERT INTO rooms(host_id, type, title, tags, privacy, password, ticket_price, seats, country, livekit_room, cover_url, theme)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
@@ -155,8 +155,10 @@ r.post('/live/:id/cover', auth, uploader(['image']).single('file'), async (req, 
   const room = await getLiveRoom(req.params.id);
   need(room.host_id === req.user.id, 'Not your room');
   need(req.file, 'Choose an image');
-  await q('UPDATE rooms SET cover_url=$2 WHERE id=$1', [room.id, fileUrl(req.file)]);
-  res.json({ cover_url: fileUrl(req.file) });
+  const url = await storeUpload(req.file);
+  if (room.cover_url && room.cover_url !== url) await removeUpload(room.cover_url);
+  await q('UPDATE rooms SET cover_url=$2 WHERE id=$1', [room.id, url]);
+  res.json({ cover_url: url });
 });
 
 // Host app uploads a snapshot every ~60s -> admin live grid + optional AI moderation
@@ -164,7 +166,7 @@ r.post('/live/:id/thumbnail', auth, uploader(['image']).single('file'), async (r
   const room = await getLiveRoom(req.params.id);
   need(room.host_id === req.user.id && room.status === 'live', 'Not your live room');
   need(req.file, 'No frame');
-  await q('UPDATE rooms SET thumbnail_url=$2, thumb_at=now() WHERE id=$1', [room.id, fileUrl(req.file)]);
+  await q('UPDATE rooms SET thumbnail_url=$2, thumb_at=now() WHERE id=$1', [room.id, await storeUpload(req.file, { keepLocal: true })]);
   await redis.set(`hb:room:${room.id}`, Date.now(), 'EX', 120);
   res.json({ ok: true });
   const verdict = await checkImage(path.join(uploadRoot, fileUrl(req.file).replace('/uploads/', '')));

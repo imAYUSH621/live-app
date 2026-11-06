@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { one, q, tx } from '../db.js';
 import { userAuth } from '../lib/auth.js';
 import { need, int, str, page, notFound, forbidden } from '../lib/util.js';
-import { uploader, fileUrl } from '../lib/upload.js';
+import { uploader, storeUpload } from '../lib/upload.js';
 import { filterText } from '../lib/moderation.js';
 import { getSettings } from '../lib/settings.js';
 import { changeCoins } from '../lib/wallet.js';
@@ -39,7 +39,7 @@ r.post('/moments', auth, uploader(['image', 'video']).single('media'), async (re
   need(body || req.file, 'Write something or add a photo/video');
   const mediaType = req.file ? (/\.(mp4|webm|mov)$/i.test(req.file.originalname) ? 'video' : 'image') : null;
   const m = await one(`INSERT INTO moments(user_id, body, media_url, media_type, country) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-    [req.user.id, body, req.file ? fileUrl(req.file) : null, mediaType, req.user.country]);
+    [req.user.id, body, req.file ? await storeUpload(req.file) : null, mediaType, req.user.country]);
   bumpTask(req.user.id, 'post_moment', 1);
   res.json({ ...m, user: await miniProfile(req.user.id) });
 });
@@ -133,7 +133,7 @@ r.post('/chats/:userId', auth, async (req, res) => {
 r.post('/chats/:userId/media', auth, uploader(['image', 'audio']).single('file'), async (req, res) => {
   need(req.file, 'No file');
   const kind = /\.(m4a|mp3|ogg|aac|wav|webm)$/i.test(req.file.originalname) ? 'voice' : 'image';
-  res.json(await sendDm(req, kind, '', fileUrl(req.file)));
+  res.json(await sendDm(req, kind, '', await storeUpload(req.file)));
 });
 
 r.post('/translate', auth, async (req, res) => {
