@@ -155,7 +155,10 @@ app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found' }));
 
 // SPA fallbacks for client-side routes; API/upload/static mounts are already
 // registered above, so only unmatched non-API GETs land here.
-app.get('/panel/*splat', (_req, res, next) => (hasAdmin ? res.sendFile(adminIndex) : next()));
+app.use('/panel', (req, res, next) => {
+  if (!hasAdmin || req.method !== 'GET') return next();
+  res.sendFile(adminIndex);
+});
 const NO_SPA_PREFIXES = ['/api', '/uploads', '/uploads-private', '/fx', '/static', '/socket.io'];
 app.get('/*splat', (req, res, next) => {
   if (!hasWeb) return next();
