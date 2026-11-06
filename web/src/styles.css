@@ -2557,3 +2557,29 @@ img { display: block; }
   font-size: 15px;
   border-radius: inherit;
 }
+
+/* ---------- Desktop width adaptation (>=861px) ----------
+   The app is phone-form-factor by design; on laptop/desktop we drop the
+   phone bezel and let the same pages breathe in a wider bounded canvas.
+   Mobile web (<=860px) is untouched - this block only widens. */
+@media (min-width: 861px) {
+  .mobile-phone-viewport-wrapper {
+    width: min(94vw, 1120px) !important;
+    min-height: 82vh !important;
+    border-radius: 18px !important;
+    padding: 0 !important;
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.10) !important;
+  }
+  .mobile-phone-viewport-wrapper .app {
+    max-width: none;
+    border-radius: 18px;
+    min-height: 82vh;
+  }
+  .app { max-width: none; }
+  .bottom-nav { max-width: min(94vw, 1120px); border-radius: 14px 14px 0 0; }
+  .room { max-width: min(94vw, 1120px); }
+  .room-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+  .store-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  .gift-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .gift-sheet, .sheet { max-width: 640px; }
+}
