@@ -33,6 +33,19 @@ try:
  adb('shell','monkey','-p','com.liveapp.live','-c','android.intent.category.LAUNCHER','1')
  wait('Use email instead');capture('relaunch')
  print('NAVIGATION_RELAUNCH_PASS')
+ # Use the real guest-auth path, no OTP/password and no session injection.
+ for _ in range(3):
+  if 'Explore as Guest' in texts(hierarchy()):break
+  adb('shell','input','swipe','500','1900','500','600','500');time.sleep(1)
+ tap('Explore as Guest');wait('Moments');capture('guest-home')
+ tap('Me');capture('guest-profile')
+ tap('Chats');capture('guest-chats')
+ tap('Moments');capture('guest-moments')
+ tap('Live');capture('guest-return-home')
+ adb('shell','am','force-stop','com.liveapp.live')
+ adb('shell','monkey','-p','com.liveapp.live','-c','android.intent.category.LAUNCHER','1')
+ wait('Moments');capture('guest-session-relaunch')
+ print('GUEST_AUTH_TABS_SESSION_RELAUNCH_PASS')
 finally:
  log=adb('logcat','-d','-v','threadtime');pathlib.Path('nav-logcat.txt').write_text(log)
  assert 'FATAL EXCEPTION' not in log,'fatal logs'
