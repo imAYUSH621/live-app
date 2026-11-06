@@ -41,7 +41,8 @@
           "iosAppId": "ca-app-pub-3940256099942544~1458002511"
         }
       ],
-      "./plugins/withStoreFlavor.js"
+      "./plugins/withStoreFlavor.js",
+      "./plugins/withStartupDiagnostics.js"
     ],
     "experiments": {
       "typedRoutes": true

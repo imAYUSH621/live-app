@@ -32,6 +32,8 @@ jobs:
         working-directory: mobile
         env:
           CI: '1'
+          # diagnostic-build branch only: instrumented test build (no-op plugin otherwise)
+          LIVEAPP_DIAGNOSTIC: '1'
         run: npx expo prebuild --platform android --non-interactive
       - name: Restrict test build to arm64-v8a via Gradle abiFilters
         working-directory: mobile
