@@ -24,6 +24,7 @@ export const DEFAULT_SETTINGS = {
     phone_login: true, email_login: true, google_login: true, translate: false,
     cp: true, fan_club: true,
     host_withdrawals: false,   // OFF: overlaps monthly settlement (double cash-out) until payout model is resolved
+    diamond_exchange: false,   // OFF: same unresolved overlap - exchange redeems the same diamonds settlement pays on
   },
   economy: {
     currency: 'INR',

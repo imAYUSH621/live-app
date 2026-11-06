@@ -77,6 +77,9 @@ r.get('/recharge/orders', auth, async (req, res) => {
 // ---------- diamonds -> coins ----------
 r.post('/wallet/exchange', auth, async (req, res) => {
   const s = await getSettings();
+  if (!s.features.diamond_exchange) {
+    throw bad('Diamond exchange is temporarily unavailable while payout rules are finalized', 'exchange_paused');
+  }
   const d = int(req.body.diamonds);
   need(d >= s.economy.min_exchange_diamonds, `Minimum ${s.economy.min_exchange_diamonds} diamonds`);
   const coins = Math.floor(d * s.economy.diamond_to_coin_rate);
