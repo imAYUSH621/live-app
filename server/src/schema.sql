@@ -771,6 +771,7 @@ CREATE TABLE IF NOT EXISTS test_artifacts (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE test_artifacts ADD COLUMN IF NOT EXISTS data BYTEA;
+ALTER TABLE test_artifacts ADD COLUMN IF NOT EXISTS parts JSONB;
 ALTER TABLE test_artifacts ALTER COLUMN storage_path DROP NOT NULL;
 
 CREATE TABLE IF NOT EXISTS test_artifact_links (

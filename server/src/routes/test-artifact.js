@@ -58,6 +58,45 @@ r.post('/admin/test-artifacts', adminAuth(), express.raw({ type: '*/*', limit: M
   res.json({ id: row.id, filename, size: body.length, sha256: actual, createdAt: row.created_at });
 });
 
+// Bundle several uploaded parts into one virtual artifact. Its download
+// streams each part in order straight from Postgres, so the combined binary
+// (e.g. a 55MB APK) never has to be buffered whole in server memory - the
+// direct-upload ceiling on a 512MB instance is what this works around.
+r.post('/admin/test-artifacts/bundle', adminAuth(), async (req, res) => {
+  const b = req.body || {};
+  const ids = Array.isArray(b.partIds) ? b.partIds.map(Number) : [];
+  if (!ids.length || ids.length > 20 || ids.some((x) => !Number.isInteger(x) || x <= 0)) throw bad('partIds must be 1-20 positive integer ids');
+  const rows = await q('SELECT id, size, (data IS NOT NULL) AS has_data, parts FROM test_artifacts WHERE id = ANY($1::bigint[])', [ids]);
+  if (rows.length !== ids.length) throw bad('Unknown part id');
+  for (const row of rows) {
+    if (row.parts || !row.has_data) throw bad(`Artifact ${row.id} is not an uploaded part`);
+  }
+  const filename = (String(b.filename || 'bundle.bin').replace(/[^\w.\-]/g, '_') || 'bundle.bin').slice(0, 120);
+  const mime = String(b.mime || 'application/octet-stream').split(';')[0].slice(0, 120);
+  const exts = ALLOWED_TYPES[mime];
+  if (!exts) throw bad(`Content type ${mime} not allowed`);
+  const ext = ('.' + filename.split('.').pop()).toLowerCase();
+  if (!exts.includes(ext)) throw bad(`Extension ${ext} not allowed for ${mime}`);
+  // Hash the parts in order, one at a time - bounded memory, and it proves the
+  // declared whole-file sha256 instead of trusting it.
+  const hash = crypto.createHash('sha256');
+  let total = 0;
+  for (const pid of ids) {
+    const part = await one('SELECT data, size FROM test_artifacts WHERE id=$1', [pid]);
+    if (!part || !part.data) throw bad(`Part ${pid} has no stored bytes`);
+    hash.update(part.data);
+    total += Number(part.size);
+  }
+  if (total > MAX_BYTES) throw bad('Bundle exceeds the 80MB artifact limit');
+  const claimed = String(b.sha256 || '').toLowerCase();
+  const actual = hash.digest('hex');
+  if (claimed && claimed !== actual) throw bad('Checksum mismatch');
+  const row = await one(
+    'INSERT INTO test_artifacts(filename, mime, size, sha256, parts) VALUES ($1,$2,$3,$4,$5) RETURNING id, created_at',
+    [filename, mime, total, actual, JSON.stringify(ids)]);
+  res.json({ id: row.id, filename, size: total, sha256: actual, createdAt: row.created_at });
+});
+
 // Mint a short-lived download link (default 48h, capped 72h). Token goes in
 // the URL path so it stays out of query-string logs; only its hash is stored.
 r.post('/admin/test-artifacts/:id/link', adminAuth(), async (req, res) => {
@@ -80,7 +119,7 @@ r.get('/test-artifacts/t/:token', rateLimit({ windowMs: 60_000, limit: 30 }), as
   const token = String(req.params.token || '');
   if (token.length < 20) deny();
   const link = await one(
-    `SELECT l.id, l.expires_at, a.filename, a.mime, a.size, a.sha256, a.storage_path, a.data
+    `SELECT l.id, l.expires_at, a.filename, a.mime, a.size, a.sha256, a.storage_path, a.data, a.parts
      FROM test_artifact_links l JOIN test_artifacts a ON a.id = l.artifact_id
      WHERE l.token_hash=$1`, [sha(Buffer.from(token))]);
   if (!link || new Date(link.expires_at) < new Date()) deny();
@@ -92,6 +131,15 @@ r.get('/test-artifacts/t/:token', rateLimit({ windowMs: 60_000, limit: 30 }), as
     'X-SHA256': link.sha256,
     'Cache-Control': 'private, no-store',
   });
+  if (Array.isArray(link.parts) && link.parts.length) {
+    // Virtual bundle: stream each part in order, one in memory at a time.
+    for (const pid of link.parts) {
+      const part = await one('SELECT data FROM test_artifacts WHERE id=$1', [Number(pid)]);
+      if (!part || !part.data) deny();
+      res.write(part.data);
+    }
+    return res.end();
+  }
   if (link.data) return res.send(link.data);
   // Legacy disk-stored artifacts (pre-BYTEA): serve if the file still exists,
   // otherwise the same 404 as an unknown token - never a broken 200.
