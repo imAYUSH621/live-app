@@ -34,6 +34,7 @@ import safetyRoutes from './routes/safety.js';
 import agencyRoutes from './routes/agency.js';
 import sellerRoutes from './routes/seller.js';
 import adminRoutes from './routes/admin.js';
+import testArtifactRoutes from './routes/test-artifact.js';
 import adminContentRoutes from './routes/admin-content.js';
 import adminModRoutes from './routes/admin-mod.js';
 import adminFinanceRoutes from './routes/admin-finance.js';
@@ -149,7 +150,7 @@ app.use('/api', (req, _res, next) => {
 
 app.use('/api/auth', authRoutes);
 for (const r of [discoverRoutes, userRoutes, liveRoutes, callRoutes, walletRoutes, storeRoutes, socialRoutes, hostRoutes,
-  safetyRoutes, agencyRoutes, sellerRoutes, bondRoutes, kycRoutes, adminRoutes, adminContentRoutes, adminModRoutes, adminFinanceRoutes]) app.use('/api', r);
+  safetyRoutes, agencyRoutes, sellerRoutes, bondRoutes, kycRoutes, adminRoutes, adminContentRoutes, adminModRoutes, adminFinanceRoutes, testArtifactRoutes]) app.use('/api', r);
 
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found' }));
 
