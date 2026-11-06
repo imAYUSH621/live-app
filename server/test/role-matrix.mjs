@@ -62,10 +62,10 @@ expect('agency token -> /agency/me 200', (await call('GET', '/agency/me', AG)).s
 expect('seller token -> /seller/me 200', (await call('GET', '/seller/me', SE)).status === 200);
 
 // ---- seller transactions ----
-const before = (await call('GET', '/users/me', US)).data;
+const before = (await call('GET', '/me', US)).data;
 const t1 = await call('POST', '/seller/transfer', SE, { uid: U2.user.uid, coins: 1200 });
 expect('seller transfer 1200 ok', t1.status === 200, JSON.stringify(t1.data).slice(0, 100));
-const after = (await call('GET', '/users/me', US)).data;
+const after = (await call('GET', '/me', US)).data;
 const bal = (u) => Number(u?.user?.coins ?? u?.coins ?? -1);
 expect('recipient +1200 coins', bal(after) - bal(before) === 1200, `${bal(before)} -> ${bal(after)}`);
 const me = (await call('GET', '/seller/me', SE)).data;
