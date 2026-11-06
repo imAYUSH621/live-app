@@ -2,13 +2,22 @@
 // Pure module (no React) so it is unit-testable with plain node.
 // The copy never claims media is publishing: a failure means nothing went out.
 
-export function describeMediaError(err) {
+export function describeMediaError(err, { audioOnly = false } = {}) {
   const name = (err && (err.name || err.code)) || '';
   const raw = (err && err.message) || 'media connection failed';
   switch (name) {
     case 'NotFoundError':
     case 'DevicesNotFoundError':
     case 'OverconstrainedError':
+      if (audioOnly) {
+        // Already in audio-only mode: the missing device is the microphone itself.
+        return {
+          kind: 'no-device',
+          title: 'No microphone found',
+          hint: 'Connect a microphone or check it is not disabled, then try again. Nothing is publishing right now.',
+          raw,
+        };
+      }
       return {
         kind: 'no-device',
         title: 'No camera or microphone found',
@@ -29,8 +38,10 @@ export function describeMediaError(err) {
     case 'AbortError':
       return {
         kind: 'busy',
-        title: 'The camera or microphone is busy',
-        hint: 'Another app or tab is using it. Close it there, then try again - or continue with audio only.',
+        title: audioOnly ? 'The microphone is busy' : 'The camera or microphone is busy',
+        hint: audioOnly
+          ? 'Another app or tab is using the microphone. Close it there, then try again.'
+          : 'Another app or tab is using it. Close it there, then try again - or continue with audio only.',
         raw,
       };
     default:
